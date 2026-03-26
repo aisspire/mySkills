@@ -1,4 +1,6 @@
-推荐配合[`fzf`](https://github.com/junegunn/fzf)进行使用
+﻿推荐配合[`fzf`](https://github.com/junegunn/fzf)进行使用
+
+我提供了bat脚本执行下面的步骤除克隆项目之外的步骤
 
 使用步骤（win11powershell）
 
@@ -12,9 +14,11 @@
 
    ```powershell
    git clone git@github.com:aisspire/mySkills.git
+   # git clone https://github.com/aisspire/mySkills.git
    ```
 
-3. 在powershell的配置文件中（`C:\Users\用户名\Documents\WindowsPowerShell\profile.ps1`）添加下面的函数
+3. 在powershell的配置文件中（`C:\Users\用户名\Documents\WindowsPowerShell\profile.ps1`）添加下面的函数（并根据需要修改`skillsDir`和`targetSubFolder`的值）
+
 
    ```powershell
    function getskill {
@@ -62,4 +66,9 @@
    }
    ```
 
-4. 在你想要添加技能的项目根目录使用`powershell`执行`getskill`命令即可调用`fzf`搜索技能并复制到当前目录
+4. 在你想要添加技能的项目根目录使用`powershell`执行`getskill`命令即可调用`fzf`搜索技能并复制到当前项目目录的技能存放处
+## Installer Structure
+
+- `installer.bat` remains the entry point.
+- `src/install.ps1` contains the installation logic.
+- `profile.ps1` remains the editable `getskill` function template.
