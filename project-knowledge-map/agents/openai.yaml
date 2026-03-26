@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Knowledge Map"
+  short_description: "Generate a git-aware project overview and modification guide"
