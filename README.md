@@ -1,6 +1,20 @@
+﻿# skills说明
+
+### `skills-editor`
+
+1. `skill-safety-auditor`：安全审查及优化建议
+2. `skill-optimizer`：优化落地
+3. `skill-workflow-orchestrator`：将上面两者结合
+
+### `project-knowledge-map`
+
+生成项目架构，可辅助ai进行快速认知项目
+
+# 安装
+
 ﻿推荐配合[`fzf`](https://github.com/junegunn/fzf)进行使用
 
-我提供了bat脚本执行下面的步骤除克隆项目之外的步骤
+推荐优先使用仓库内置安装器，它会自动完成 `fzf` 检查、`profile.ps1` 模板注入以及旧函数替换。
 
 使用步骤（win11powershell）
 
@@ -17,58 +31,32 @@
    # git clone https://github.com/aisspire/mySkills.git
    ```
 
-3. 在powershell的配置文件中（`C:\Users\用户名\Documents\WindowsPowerShell\profile.ps1`）添加下面的函数（并根据需要修改`skillsDir`和`targetSubFolder`的值）
+3. 在仓库根目录执行安装器
 
+   直接运行批处理入口：
 
    ```powershell
-   function getskill {
-       # 1. 设置技能库的来源路径
-       $skillsDir = "You clone the address of this project"
-       
-       # 2. 设置你想要存放在当前目录下的哪个子目录（例如 "modules" 或 "skills"）
-       # 如果你想直接复制到当前目录下，请保持 $targetSubFolder = "."
-       $targetSubFolder = ".\.agents\skills"
-   
-       # 检查来源目录是否存在
-       if (!(Test-Path -Path $skillsDir)) {
-           Write-Host "[ERROR] Directory $skillsDir not found." -ForegroundColor Red
-           return
-       }
-   
-       # 3. 使用 fzf 选择技能文件夹
-       $skill = Get-ChildItem -Path $skillsDir -Directory | 
-                Where-Object { $_.Name -ne ".git" } | 
-                Select-Object -ExpandProperty Name | 
-                fzf --prompt="Select skill to copy: "
-   
-       # 4. 如果选中了
-       if ($skill) {
-           # 确定来源的文件夹完整路径（不加 \* 就会复制整个文件夹）
-           $sourcePath = Join-Path -Path $skillsDir -ChildPath $skill
-           
-           # 确定当前目录下的目标路径
-           $destinationPath = Join-Path -Path $ExecutionContext.SessionState.Path.CurrentLocation -ChildPath $targetSubFolder
-   
-           # 如果目标子文件夹不存在，则创建它
-           if (!(Test-Path -Path $destinationPath)) {
-               New-Item -ItemType Directory -Path $destinationPath | Out-Null
-           }
-   
-           # 执行复制：将整个文件夹复制到目标位置
-           try {
-               Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
-               Write-Host "[SUCCESS] Copied folder '$skill' into '$targetSubFolder/'" -ForegroundColor Green
-           }
-           catch {
-               Write-Host "[ERROR] Failed to copy: $($_.Exception.Message)" -ForegroundColor Red
-           }
-       }
-   }
+   .\installer.bat
    ```
 
-4. 在你想要添加技能的项目根目录使用`powershell`执行`getskill`命令即可调用`fzf`搜索技能并复制到当前项目目录的技能存放处
-## Installer Structure
+   如果你想手动调用 PowerShell 安装脚本，也可以执行：
 
-- `installer.bat` remains the entry point.
-- `src/install.ps1` contains the installation logic.
-- `profile.ps1` remains the editable `getskill` function template.
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\src\install.ps1 -RepoRoot .
+   ```
+
+4. 重启 PowerShell
+
+   安装器会把托管代码块写入当前用户的 PowerShell profile，并将模板中的 `$skillsDir` 自动替换为当前仓库路径。
+
+5. 在你想要添加技能的项目根目录执行 `getskill`
+
+   `getskill` 会通过 `fzf` 搜索可用 skill，并复制到当前项目的 `.\.agents\skills` 目录。搜索过程中如果某个目录下已经存在 `SKILL.md`，会把该目录视为一个完整 skill，并停止继续向下递归，避免把 skill 内部子目录误当成独立 skill。
+
+## 规范与安装器说明
+
+- `installer.bat` 是推荐入口，适合直接双击或在终端里运行。
+- `src/install.ps1` 负责实际安装逻辑，包括检查 `fzf`、定位 PowerShell profile、写入托管代码块以及替换旧版函数。
+- `profile.ps1` 是安装模板，安装器会从这个模板中自动提取函数名，并在写入前清理用户 profile 中同名的旧模板函数。
+- `规范.md` 约束了 `profile.ps1` 的函数命名和结构：`getskill` 是唯一公开例外，其余函数必须使用 `GS-` 前缀，且必须保持扁平顶层定义，不能嵌套、不能设置别名。
+- 如果后续修改 `profile.ps1` 中的 helper 函数，优先保持安装器基于模板自动同步，不要回退到手写函数名列表。

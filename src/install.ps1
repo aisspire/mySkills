@@ -112,15 +112,46 @@ function Get-TemplateContent {
     )
 }
 
-function Remove-FunctionByName {
+function Get-FunctionNamesFromContent {
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Content
+    )
+
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput($Content, [ref]$tokens, [ref]$parseErrors)
+
+    return @(
+        $ast.FindAll(
+            {
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            },
+            $true
+        ) | ForEach-Object { $_.Name }
+    )
+}
+
+function Remove-FunctionsByName {
     param(
         [Parameter(Mandatory)]
         [AllowEmptyString()]
         [string]$Content,
 
         [Parameter(Mandatory)]
-        [string]$FunctionName
+        [string[]]$FunctionNames
     )
+
+    $distinctFunctionNames = @($FunctionNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    if ($distinctFunctionNames.Count -eq 0) {
+        return @{
+            Content = $Content
+            Removed = $false
+            RemovedNames = @()
+        }
+    }
 
     $tokens = $null
     $parseErrors = $null
@@ -129,7 +160,7 @@ function Remove-FunctionByName {
         {
             param($node)
             $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-            $node.Name -ieq $FunctionName
+            ($distinctFunctionNames -icontains $node.Name)
         },
         $true
     )
@@ -138,19 +169,23 @@ function Remove-FunctionByName {
         return @{
             Content = $Content
             Removed = $false
+            RemovedNames = @()
         }
     }
 
     $updatedContent = $Content
+    $removedNames = New-Object System.Collections.Generic.List[string]
     foreach ($functionAst in ($functionAsts | Sort-Object { $_.Extent.StartOffset } -Descending)) {
         $startOffset = $functionAst.Extent.StartOffset
         $endOffset = $functionAst.Extent.EndOffset
         $updatedContent = $updatedContent.Remove($startOffset, $endOffset - $startOffset)
+        $removedNames.Add($functionAst.Name)
     }
 
     return @{
         Content = $updatedContent.Trim()
         Removed = $true
+        RemovedNames = @($removedNames | Select-Object -Unique)
     }
 }
 
@@ -161,7 +196,10 @@ function Set-ManagedProfileBlock {
         [string]$ExistingContent,
 
         [Parameter(Mandatory)]
-        [string]$ManagedContent
+        [string]$ManagedContent,
+
+        [Parameter(Mandatory)]
+        [string[]]$ManagedFunctionNames
     )
 
     $managedBlock = @(
@@ -181,11 +219,12 @@ function Set-ManagedProfileBlock {
         ).Trim() + [Environment]::NewLine
     }
 
-    $withoutLegacy = Remove-FunctionByName -Content $ExistingContent -FunctionName 'getskill'
+    $withoutLegacy = Remove-FunctionsByName -Content $ExistingContent -FunctionNames $ManagedFunctionNames
     $contentAfterRemoval = $withoutLegacy.Content.Trim()
 
     if ($withoutLegacy.Removed -and -not $Force) {
-        $choice = Read-Host "Detected an existing unmanaged getskill function in your profile. Replace it? (Y/N)"
+        $removedFunctionList = ($withoutLegacy.RemovedNames | Sort-Object) -join ', '
+        $choice = Read-Host "Detected existing unmanaged template functions in your profile ($removedFunctionList). Replace them? (Y/N)"
         if ($choice -notmatch '^[Yy]') {
             throw 'Installation cancelled by user.'
         }
@@ -236,12 +275,13 @@ try {
     Ensure-ProfileFile -ResolvedProfilePath $resolvedProfilePath
 
     $templateContent = Get-TemplateContent -ResolvedTemplatePath $resolvedTemplatePath -ResolvedRepoRoot $resolvedRepoRoot
+    $templateFunctionNames = Get-FunctionNamesFromContent -Content $templateContent
     $existingProfileContent = Get-Content -LiteralPath $resolvedProfilePath -Raw -Encoding UTF8
     if ($null -eq $existingProfileContent) {
         $existingProfileContent = ''
     }
 
-    $updatedProfileContent = Set-ManagedProfileBlock -ExistingContent $existingProfileContent -ManagedContent $templateContent
+    $updatedProfileContent = Set-ManagedProfileBlock -ExistingContent $existingProfileContent -ManagedContent $templateContent -ManagedFunctionNames $templateFunctionNames
     Set-Content -LiteralPath $resolvedProfilePath -Value $updatedProfileContent -Encoding UTF8
 
     Write-Step '[3/3] Finalizing setup...'
