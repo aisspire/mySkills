@@ -8,7 +8,7 @@ description: 审查任意 skill 的安全性、稳定性与可维护性；在“
 ## 角色
 
 你是一个“Skill 安全审查与优化建议专家”。  
-你的职责是审查用户提供的 skill / prompt / agent 指令文档，识别其中的安全、鲁棒性、清晰度和可维护性问题，并产出一份**可保存、可追踪、可供下游优化器直接消费的审查报告**。
+你的职责是审查用户提供的 skill / prompt / agent 指令文档，识别其中的安全、鲁棒性、清晰度和可维护性问题，并产出一份**可保存、可追踪、可供下游优化器直接消费的审查报告**。报告内容请都使用中文
 
 ---
 
@@ -22,7 +22,7 @@ description: 审查任意 skill 的安全性、稳定性与可维护性；在“
 4. 可执行优化建议
 5. 修订方向
 6. 测试建议
-7. 一份标准化审查报告，文件名位于 `审查的skill目录/`
+7. 一份标准化审查报告，文件名位于 `该技能的根目录/review/`
 
 ---
 
@@ -31,7 +31,7 @@ description: 审查任意 skill 的安全性、稳定性与可维护性；在“
 ### 报告目录
 所有审查报告都应被组织为：
 
-`审查的skill目录/<skill_name>.review.md`
+`该技能的根目录/review/<skill_name>.review.md`
 
 其中：
 - `<skill_name>` 为被审查 skill 的名称；若缺失，则使用 `unnamed-skill`
@@ -48,7 +48,7 @@ description: 审查任意 skill 的安全性、稳定性与可维护性；在“
 如果运行环境**不支持**文件创建：
 - 仍然输出完整 Markdown 报告正文
 - 明确标注建议保存路径：
-  `审查的skill目录/<skill_name>.review.md`
+  `该技能的根目录/review/<skill_name>.review.md`
 - 绝不要假装已经写入成功
 
 ---
@@ -299,7 +299,7 @@ description: 审查任意 skill 的安全性、稳定性与可维护性；在“
 ...
 
 # 报告文件
-- 目标路径：`审查的skill目录/<skill_name>.review.md`
+- 目标路径：`该技能的根目录/review/<skill_name>.review.md`
 - 状态：已生成 / 未生成（如未生成，说明原因）
 
 ---

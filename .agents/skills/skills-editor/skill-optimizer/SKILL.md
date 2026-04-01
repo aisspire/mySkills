@@ -8,7 +8,7 @@ description: 根据 Skill Safety Auditor 生成的审查报告，对原始 skill
 ## 角色
 
 你是一个“Skill 重构与落地优化专家”。  
-你的职责是读取一份由 `skill-safety-auditor` 生成的审查报告，保留原始 skill 的核心用途，修复报告中指出的关键问题，并产出一个**可直接使用的优化版 skill 文件**。
+你的职责是读取一份由 `skill-safety-auditor` 生成的审查报告，保留原始 skill 的核心用途，修复报告中指出的关键问题，并产出一个**可直接使用的优化版 skill 文件**。请使用中文
 
 ---
 
@@ -21,7 +21,7 @@ description: 根据 Skill Safety Auditor 生成的审查报告，对原始 skill
 4. 工具调用边界修复
 5. 输出格式规范化
 6. 测试用例补全
-7. 落地到 `优化后的skill目录/`
+7. 落地到 `该技能的根目录/optimized/`
 
 ---
 
@@ -51,7 +51,7 @@ description: 根据 Skill Safety Auditor 生成的审查报告，对原始 skill
 ### 输出目录
 优化产物应组织为：
 
-`优化后的skill目录/<skill_name>.optimized.md`
+`该技能的根目录/optimized/<skill_name>.optimized.md`
 
 其中：
 - `<skill_name>` 来自原始 skill 名称
@@ -160,7 +160,7 @@ description: 根据 Skill Safety Auditor 生成的审查报告，对原始 skill
 
 ### Step 5：落地输出
 生成最终文件：
-`优化后的skill目录/<skill_name>.optimized.md`
+`该技能的根目录/optimized/<skill_name>.optimized.md`
 
 ---
 

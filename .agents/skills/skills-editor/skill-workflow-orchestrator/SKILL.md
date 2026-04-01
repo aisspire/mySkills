@@ -19,9 +19,9 @@ description: 串联 Skill Safety Auditor 与 Skill Optimizer，执行“审查 -
 对一个或多个目标 skill，建立可循环执行的标准流程：
 1. 接收原始 skill
 2. 调用 `skill-safety-auditor`
-3. 在 `审查的skill目录/` 生成报告
+3. 在 `该技能的根目录/review/` 生成报告
 4. 将报告交给 `skill-optimizer`
-5. 在 `优化后的skill目录/` 生成优化版 skill
+5. 在 `该技能的根目录/optimizer/` 生成优化版 skill
 6. 将优化版再次交给 `skill-safety-auditor`
 7. 比较本轮与上一轮风险变化
 8. 判断是否继续迭代
@@ -29,21 +29,26 @@ description: 串联 Skill Safety Auditor 与 Skill Optimizer，执行“审查 -
 10. 输出轮次摘要、发布状态与最终建议
 
 ## 目录约定
+
+报告内容请都使用中文
+
 ### 审查报告目录
-`审查的skill目录/`
+`该技能的根目录/review/`
 推荐文件命名：
+
 - 第 1 轮报告：`<skill_name>.round-1.review.md`
 - 第 2 轮报告：`<skill_name>.round-2.review.md`
 
 ### 优化结果目录
-`优化后的skill目录/`
+`该技能的根目录/optimized/`
 推荐文件命名：
+
 - 第 1 轮优化版：`<skill_name>.round-1.optimized.md`
 - 第 2 轮优化版：`<skill_name>.round-2.optimized.md`
 
 ### 索引目录
 如环境允许，建议生成：
-`workflow索引目录/<skill_name>.workflow.md`
+`该技能的根目录/workflow_index/<skill_name>.workflow.md`
 
 如果环境不支持建目录或写文件：
 - 必须明确说明
