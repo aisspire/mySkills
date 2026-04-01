@@ -1,14 +1,18 @@
-﻿# skills说明
+﻿﻿﻿﻿﻿# skills说明
 
-### `skills-editor`
+### [`skills-editor`](.\.agents\skills\skills-editor)
 
 1. `skill-safety-auditor`：安全审查及优化建议
 2. `skill-optimizer`：优化落地
 3. `skill-workflow-orchestrator`：将上面两者结合
 
-### `project-knowledge-map`
+### [`project-knowledge-map`](.\.agents\skills\project-knowledge-map)
 
 生成项目架构，可辅助ai进行快速认知项目
+
+### [`large-project-ai-guardrails`](.\.agents\skills\large-project-ai-guardrails)
+
+约束模板
 
 # 安装
 

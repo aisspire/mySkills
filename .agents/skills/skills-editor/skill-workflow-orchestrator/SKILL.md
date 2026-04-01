@@ -1,208 +1,193 @@
 ---
 name: skill-workflow-orchestrator
-description: 串联 Skill Safety Auditor 与 Skill Optimizer，执行“审查 -> 报告 -> 优化 -> 复审 -> 收敛判断 -> 发布确认”的多轮迭代工作流；管理目录、轮次、停止条件、发布决策与产物索引。适用于持续优化单个或多个 skills，并形成可追踪的改进闭环。
+description: Use when coordinating multi-round writing gate checks, auditing, optimization, compliance decisions, and publish approval for one or more skills, especially when baseline evidence may be incomplete
 ---
 
 # Skill Workflow Orchestrator
 
-## 角色
-你是一个“Skill 迭代编排器”。
-你的职责是调度整个技能优化闭环，确保任意一个 skill 都能够经过：
-**审查 -> 生成报告 -> 优化重写 -> 复审 -> 收敛判断 -> 发布确认 -> 归档**
+## Overview
+用于编排 skill editor / skill governance 工作流，把 `skill-writing-gate`、`skill-safety-auditor`、`skill-optimizer` 串成一条可追踪、可中止、可人工接力的闭环。
 
-## 协作对象
-默认与以下两个 skill 协作：
-1. `skill-safety-auditor`
-2. `skill-optimizer`
+它是主要集成点。它负责说明当前进行到哪一步、当前最多能宣称到哪一级合规、还能不能发布。
 
-## 工作目标
-对一个或多个目标 skill，建立可循环执行的标准流程：
-1. 接收原始 skill
-2. 调用 `skill-safety-auditor`
-3. 在 `该技能的根目录/review/` 生成报告
-4. 将报告交给 `skill-optimizer`
-5. 在 `该技能的根目录/optimizer/` 生成优化版 skill
-6. 将优化版再次交给 `skill-safety-auditor`
-7. 比较本轮与上一轮风险变化
-8. 判断是否继续迭代
-9. 在流程收敛后询问用户是否将推荐版本覆写回正式入口文件
-10. 输出轮次摘要、发布状态与最终建议
+## When to Use
+- 需要对一个或多个 skills 做多轮审查、优化、复审和发布判断
+- 需要把 `writing-skills` 方法门禁集成进现有工作流
+- 需要明确区分静态合规、部分 writing 合规、完整 writing 合规
+- 需要在发布前强制用户确认
 
-## 目录约定
+## When NOT to Use
+- 只做单次审查或单次重写，不需要编排
+- 已明确不需要 writing gate 或发布门禁
+- 只想要一次性的手工文本，不需要轮次管理
 
-报告内容请都使用中文
+## Core Principles
+- 候选版不等于已发布
+- `writing-skills` 是上位方法论，`skill-writing-gate` 是其门禁翻译层
+- 没有 baseline failure evidence，不得把候选版标为完整 writing 合规
+- 不能真实调度或真实补测时，必须降级为人工接力模式
+- 发布前必须说明候选等级，并获得明确确认
 
-### 审查报告目录
-`该技能的根目录/review/`
-推荐文件命名：
+## Collaboration Skills
+默认协作对象：
+- `skill-writing-gate`
+- `skill-safety-auditor`
+- `skill-optimizer`
 
-- 第 1 轮报告：`<skill_name>.round-1.review.md`
-- 第 2 轮报告：`<skill_name>.round-2.review.md`
+## Unified Directory Rules
+统一使用以下目录：
+- 审查报告：`<skill_root>/review/<skill_name>.round-N.review.md`
+- 优化版：`<skill_root>/optimized/<skill_name>.round-N.optimized.md`
+- writing gate：`<skill_root>/compliance/<skill_name>.round-N.writing-gate.md`
+- 流程索引：`<skill_root>/workflow_index/<skill_name>.workflow.md`
 
-### 优化结果目录
-`该技能的根目录/optimized/`
-推荐文件命名：
+不得再使用 `optimizer/`。
 
-- 第 1 轮优化版：`<skill_name>.round-1.optimized.md`
-- 第 2 轮优化版：`<skill_name>.round-2.optimized.md`
+## Stage Model
 
-### 索引目录
-如环境允许，建议生成：
-`该技能的根目录/workflow_index/<skill_name>.workflow.md`
+### Stage 0：Writing Gate Readiness
+使用 `skill-writing-gate` 判断当前状态：
+- 当前等级
+- 证据链是否完整
+- 当前不可宣称的范围
+- 下一步最缺什么
 
-如果环境不支持建目录或写文件：
-- 必须明确说明
-- 输出等价 Markdown 内容
-- 给出建议保存路径
-- 不要假装写入成功
+### Stage 1：Baseline Evidence Check
+检查是否存在真实 baseline failure evidence。
+如果没有：
+- 明确记录“尚未具备完整 writing 证据链”
+- 进入人工补测提示，或继续做静态流程但不升格为完整 writing 合规
 
-## 输入
-你可以接收以下输入形式：
-- 一个原始 skill
-- 一个审查报告
-- 一个优化后的 skill
-- 一个包含多个 skills 的列表
+### Stage 2：Safety / Structure Audit
+使用 `skill-safety-auditor` 做安全、结构、writing 静态缺口审查。
 
-## 轮次管理规则
-- 默认最多执行 3 轮
-- 每轮至少产出：审查摘要、报告路径、优化摘要、优化路径、风险变化、是否继续
+### Stage 3：Optimization
+使用 `skill-optimizer` 产出候选优化版。
+要求输出：
+- 已静态修复的部分
+- 仍需真实验证的部分
 
-## 收敛与停止条件
+### Stage 4：Re-Audit
+对候选优化版再次审查，确认：
+- 风险是否下降
+- 结构是否更清晰
+- 是否引入新副作用
+- writing 静态缺口是否减少
+
+### Stage 5：Compliance Decision
+再次使用 `skill-writing-gate`，对候选版作最终等级判定：
+- 静态合规
+- 部分 writing 合规
+- 完整 writing 合规
+
+强规则：
+- 没有真实 baseline failure evidence，不能判为完整 writing 合规
+- 环境不支持真实补测时，最多停在静态合规或部分 writing 合规
+
+### Stage 6：Publish Approval
+发布前必须明确告诉用户：
+- 推荐版本是什么
+- 当前属于哪一类候选版本
+- 将覆盖哪些正式入口文件
+- 当前是否真的允许覆写
+
+未得到明确确认前：
+- `发布确认: 未同意`
+- `正式入口状态: 未覆写`
+
+## Mode Selection
+先判断当前环境属于哪一种：
+- 真实编排模式：可以真实调用相关 skill，且能保存产物
+- 人工接力模式：不能真实调用或不能可靠补测 / 保存
+
+若不能真实运行 baseline pressure tests：
+- 必须进入人工补测提示或人工接力模式
+- 不得伪造 RED / GREEN 已完成
+
+## Stop Conditions
 满足任意一项即可建议停止：
-1. 安全等级达到 A 或 B，且无严重问题
-2. 连续两轮改进有限
-3. 继续优化会明显损害核心用途
-4. 运行环境限制导致只能人工接力
+- 当前候选版已达到目标等级，且无关键阻塞
+- 连续两轮改进有限
+- 继续优化会损害核心用途
+- 环境限制导致后续必须人工补测
 
-## 最终发布确认规则
-当工作流达到“建议停止”时，必须进入最终发布确认阶段。
-
-你必须明确询问用户：
-- 是否将推荐采用的优化版覆写回正式入口文件，例如正式 `SKILL.md` 或对应变体入口文件
-- 若存在多个入口文件，要逐个说明将被覆写的目标路径
-
-默认规则：
-- 在用户明确同意前，优化版只属于候选版本，不属于已落地版本
-- 不得把“推荐采用的最终版本”表述成“已经应用到正式 skill”
-- 不得跳过询问步骤
-
-如果用户明确同意：
-- 在环境支持写文件时执行覆写
-- 在工作流摘要中记录 `发布确认: 已同意`
-- 在最终建议中记录正式入口路径与 `正式入口状态: 已覆写`
-
-如果用户明确拒绝，或当前回合尚未得到确认：
-- 保留审查报告、优化版与 workflow 索引
-- 在工作流摘要中记录 `发布确认: 未同意`
-- 在最终建议中明确写出 `正式入口状态: 未覆写`
-- 明确说明“候选版本已生成，但尚未发布到正式 skill”
-
-## 风险变化评估
-每轮结束时至少比较：
-- 总体安全等级是否提升
-- 严重问题数量是否下降
-- 高风险问题数量是否下降
-- 是否新增结构性保护
-- 是否引入新的副作用
-- 是否损害原始功能
-
-用以下之一标记：
-- 显著改进
-- 部分改进
-- 改进有限
-
-## 编排流程
-### Step 1：识别输入状态
-判断当前拿到的是原始 skill、报告、优化版还是多个待处理 skill。
-
-### Step 2：确定起始阶段
-根据输入类型选择从审查开始、从优化开始或从复审开始。
-
-### Step 3：建立迭代计划
-至少列出：
-- 目标对象
-- 当前轮次
-- 最大轮次
-- 预期产物
-- 停止条件
-
-### Step 4：执行本轮
-对于每轮：
-1. 交给 `skill-safety-auditor`
-2. 获取审查报告
-3. 提炼必须修复项
-4. 交给 `skill-optimizer`
-5. 获取优化版
-6. 对优化版进行复审
-7. 汇总变化
-
-### Step 5：判断是否继续
-依据收敛规则给出继续下一轮或当前结束的结论。
-
-### Step 6：最终发布确认
-如果 Step 5 的结论是停止：
-1. 明确指出推荐采用的候选版本
-2. 明确列出将被覆写的正式入口文件路径
-3. 询问用户是否执行覆写
-4. 根据用户答复记录“已覆写”或“未覆写”
-
-如果 Step 5 的结论是继续下一轮：
-- 不进行发布确认
-- 明确标注 `发布确认: 未请求（流程尚未收敛）`
-
-### Step 7：输出总结
-最终必须给出：
-- 推荐采用的最终版本
-- 最终报告路径
-- 最终优化版路径
-- 发布确认状态
-- 正式入口路径
-- 正式入口状态
-- 仍然存在的剩余风险
-- 下次迭代建议
-
-## 输出格式
+## Output Format
+- 所有工作流报告必须使用中文撰写；文件路径、技能名、阶段名、代码标识可保留原文。
 # 工作流状态
-# 本轮摘要
-## 审查结果
-## 优化结果
-## 复审结果
-# 是否继续
-## 发布确认
+- 当前模式：
+- 当前轮次：
+- 最大轮次：
+- 当前候选等级：
+- 发布确认：
+- 正式入口状态：
+
+# Stage 0：writing gate
+- 当前等级：
+- 证据链状态：
+- 下一步建议：
+
+# Stage 1：baseline evidence
+- 是否存在真实 baseline：
+- 缺什么：
+- 是否进入人工补测提示：
+
+# Stage 2：审查结果
+- 风险摘要：
+- writing 缺口摘要：
+
+# Stage 3：优化结果
+- 已静态修复：
+- 仍需补测：
+
+# Stage 4：复审结果
+- 风险变化：
+- 新增副作用：
+- 对核心用途影响：
+
+# Stage 5：合规判定
+- 最终候选等级：
+- 可宣称范围：
+- 不可宣称范围：
+
+# Stage 6：发布确认
+- 推荐候选版本：
+- 拟覆写正式入口路径：
+- 用户确认状态：
+
 # 最终建议
+- 最终报告路径：
+- 最终优化版路径：
+- 最终 gate 路径：
+- 剩余风险：
+- 下次迭代建议：
 
-## 多 skill 处理模式
-如果用户一次要求优化多个 skills：
-- 为每个 skill 单独建立轮次记录
-- 最后再给一个汇总视图
-
-汇总视图至少包含：
+## Multi-Skill Rules
+- 每个 skill 单独建轮次记录
+- 最后再给汇总视图
+- 汇总至少包含：
 - skill 名称
 - 当前最佳版本
-- 当前安全等级
-- 是否建议继续优化
+- 当前候选等级
+- 是否建议继续
 - 主要剩余问题
 
-## 人工接力模式
-如果运行环境不能真正“调用另一个 skill 并保存文件”，则切换为人工接力模式。
+## Manual Handoff Mode
+如果不能真实跨 skill 调度或不能真实补测，必须输出：
+- 当前停在哪个 stage
+- 下一步该交给哪个 skill
+- 需要补什么输入
+- 建议保存路径
+- 可复制的 handoff 模板
 
-在此模式下，你必须：
-1. 明确指出当前限制
-2. 给出下一步该把什么内容交给哪个 skill
-3. 给出建议保存路径
-4. 给出复制粘贴模板
+不要把“已给出 handoff 包”写成“已完成流程”。
 
-## 行为要求
-- 不要假装完成了未完成的跨 skill 调度
-- 不要省略轮次信息
-- 不要只说“已优化”，必须说明改善了什么
-- 不要忽略剩余风险
-- 不要无限循环，必须依据停止条件收敛
-- 不要在未获得用户明确确认时覆写正式入口文件
-- 不要把候选优化版误写成“已落地”或“已发布”
-- 如果用户拒绝发布，必须明确写出“候选版本已生成，但尚未发布到正式 skill”
-- 不要让用户看不懂当前处于哪一步
+## Common Mistakes
+- 跳过 Stage 0 或 Stage 5，直接宣布完整合规
+- 没有 baseline evidence 仍标为完整 writing 合规
+- 混用 `optimizer/` 与 `optimized/`
+- 把候选版写成“已发布”
+- 未获确认就覆写正式 `SKILL.md`
+- 环境不支持真实补测时仍伪造 RED / GREEN 已完成
 
-## 最终目的
-你负责把两个独立 skill 变成一条稳定、可追踪、可回归的工作流：
-**原始 skill -> 审查报告 -> 优化版 -> 复审报告 -> 发布确认 -> 最佳版本沉淀**
+## Final Rule
+这个 skill 的职责是编排、标注、收敛和门禁，不是替代真实 baseline 测试。
