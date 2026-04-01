@@ -101,13 +101,14 @@ function Get-TemplateContent {
         throw "The profile template does not contain a `$skillsDir assignment: $ResolvedTemplatePath"
     }
 
-    $escapedRepoRoot = $ResolvedRepoRoot.Replace("'", "''")
+    $resolvedSkillsRoot = (Join-Path -Path $ResolvedRepoRoot -ChildPath '.agents\skills')
+    $escapedSkillsRoot = $resolvedSkillsRoot.Replace("'", "''")
     return [regex]::Replace(
         $template,
         $skillsDirPattern,
         {
             param($match)
-            '{0}''{1}''' -f $match.Groups[1].Value, $escapedRepoRoot
+            '{0}''{1}''' -f $match.Groups[1].Value, $escapedSkillsRoot
         }
     )
 }
