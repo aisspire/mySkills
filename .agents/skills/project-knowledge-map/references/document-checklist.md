@@ -1,21 +1,23 @@
-# Project document checklist
+# 项目文档检查清单
 
-Use this checklist as a final pass before saving the markdown file.
+在保存 markdown 文件之前，使用这份检查清单进行最后一轮核对。
 
-## Must verify
-- Git status was checked first.
-- The commit-hash basis in the filename matches the chosen rule.
-- The document filename follows `docs/{YYYY-MM-DD_HH-mm}_{hash}_项目文档.md`.
-- If uncommitted changes existed and the user chose not to commit, the document begins with the required warning.
-- `docs/` old documents were inspected before drafting.
-- The document distinguishes confirmed, inferred, and uncertain information.
-- Core flows and shared mechanisms were analyzed more deeply than secondary modules.
-- The document contains practical modification guidance for later AI work.
+## 必须确认
 
-## Common failure modes
-- Over-describing directory names without tracing code relationships.
-- Treating guesses as facts.
-- Spending too much space on low-value utility folders.
-- Ignoring older analysis documents in `docs/`.
-- Forgetting to describe impact radius for common modifications.
-- Producing only a summary instead of a durable project knowledge base.
+- 已先检查 Git 状态。
+- 文件名中的 commit hash 依据符合选定规则。
+- 文档文件名符合 `docs/{YYYY-MM-DD_HH-mm}_{hash}_项目文档.md` 格式。
+- 如果存在未提交改动，且用户选择不提交，则文档开头必须包含要求的警告说明。
+- 在起草前，已经检查过 `docs/` 中的旧文档。
+- 文档明确区分了已确认信息、推断信息和不确定信息。
+- 对核心流程和共享机制的分析深度高于次级模块。
+- 文档包含了面向后续 AI 工作的、可实际执行的修改指引。
+
+## 常见失败模式
+
+- 只是在堆砌目录名称描述，而没有沿着代码关系进行追踪。
+- 把猜测当成事实。
+- 在低价值的工具类目录上花费过多篇幅。
+- 忽略了 `docs/` 中已有的旧分析文档。
+- 忘记说明常见修改的影响范围。
+- 最终只产出一份摘要，而不是一份可持续使用的项目知识文档。

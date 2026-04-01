@@ -1,354 +1,354 @@
 ---
 name: project-knowledge-map
-description: analyze the current working directory as a git-backed software project and produce a high-quality project overview document for future ai development. use when the user wants a project function and structure overview, architecture梳理, codebase knowledge base, implementation map, modification impact guide, or incremental update of an existing project analysis document. supports backend, frontend, full-stack, monorepo, sdk, service, tool, mobile, desktop, and multi-service repositories. requires local files and git only, must not modify project code, and should save the final markdown under docs/ using the required timestamp and commit-hash naming convention.
+description: 分析当前工作目录中的、受 git 管理的软件项目，为后续 AI 开发生成高质量的项目总览文档。当用户希望获得项目功能与结构概览、架构梳理、代码库知识库、实现地图、修改影响指南，或对现有项目分析文档做增量更新时使用。支持 backend、frontend、full-stack、monorepo、sdk、service、tool、mobile、desktop 以及 multi-service 仓库。仅允许使用本地文件和 git；不得修改项目代码；最终 markdown 必须按照要求的时间戳与 commit hash 命名规则保存到 docs/ 目录下。
 ---
 
-# Project Knowledge Map
+# 项目知识地图（Project Knowledge Map）
 
-## Overview
+## 概述
 
-Use this skill to inspect the current working directory as a software project, determine the project type and architecture from actual code and git history, and generate a durable markdown knowledge-base document for later AI-assisted development.
+使用这个 skill 将当前工作目录视为一个软件项目进行检查；基于实际代码与 git 历史判断项目类型与架构；并生成一份可长期使用的 markdown 知识文档，供后续 AI 辅助开发使用。
 
-The final artifact is a markdown file saved under `docs/` and named:
+最终产物是保存在 `docs/` 下的 markdown 文件，命名格式为：
 
 `docs/{YYYY-MM-DD_HH-mm}_{short-hash}_项目文档.md`
 
-Do not change project source code, configuration, dependencies, lockfiles, or git history. Creating or updating the documentation file under `docs/` is allowed only after the user has confirmed how to proceed with the current git state.
+不得修改项目源码、配置、依赖、锁文件或 git 历史。只有在用户明确确认当前 git 状态下应如何继续后，才允许在 `docs/` 下创建或更新文档文件。
 
-## Non-negotiable constraints
+## 不可协商的约束
 
-- Use only local files and git.
-- Do not browse the web.
-- Do not edit project code or project configuration.
-- Do not auto-commit, stash, reset, or clean the repository.
-- Do not pretend a conclusion is confirmed when it is only inferred.
-- Prefer actual call paths, configuration wiring, and code responsibilities over directory-name guesswork.
-- Focus depth on core modules, core call chains, main flows, and shared infrastructure.
-- Keep secondary modules brief.
+- 只能使用本地文件和 git。
+- 不得浏览网页。
+- 不得编辑项目代码或项目配置。
+- 不得自动执行 commit、stash、reset 或 clean。
+- 不能把“推断”伪装成“已确认事实”。
+- 相比基于目录名的猜测，应优先依据真实调用链、配置接线关系与代码职责作判断。
+- 分析深度应优先放在核心模块、核心调用链、主流程和共享基础设施上。
+- 次级模块保持简洁。
 
-## Required workflow
+## 必须遵循的工作流
 
-Follow this sequence every time.
+每次都必须按以下顺序执行。
 
-### 1. Inspect git state first
+### 1. 先检查 git 状态
 
-Run git status before generating the document.
+在生成文档前，先运行 `git status`。
 
-If there are uncommitted changes:
-- Tell the user clearly that the project currently has uncommitted modifications.
-- Recommend committing first so the document is traceable to a stable version.
-- Wait for the user's decision.
+如果存在未提交改动：
+- 明确告知用户，当前项目有未提交修改。
+- 建议先提交，以便文档能追溯到一个稳定版本。
+- 等待用户决定。
 
-If the user chooses to commit first:
-- Stop here.
-- Resume only after the user indicates the commit is complete.
-- Re-check git state before continuing.
+如果用户选择先提交：
+- 在此停止。
+- 仅当用户表示提交已完成后再继续。
+- 继续前重新检查 git 状态。
 
-If the user refuses or postpones committing:
-- Use the latest committed revision as the naming basis.
-- Use the latest commit short hash for the filename.
-- Add a prominent note at the start of the generated document stating that the working tree has uncommitted changes and the document is based on the latest committed version, so the live code may already differ.
+如果用户拒绝提交或决定暂缓提交：
+- 使用最近一次已提交版本作为命名依据。
+- 文件名中的 hash 使用最近一次提交的 short hash。
+- 在生成文档开头显著说明：当前工作树存在未提交改动；本文档基于最近一次已提交版本，因此实际代码可能已经与文档不一致。
 
-If there are no uncommitted changes:
-- Use the current HEAD short hash for the filename.
-- Continue without the warning note above.
+如果没有未提交改动：
+- 使用当前 HEAD 的 short hash 作为文件名依据。
+- 继续执行，无需添加上述警告说明。
 
-### 2. Determine naming basis
+### 2. 确定命名依据
 
-Use:
-- timestamp format: `YYYY-MM-DD_HH-mm`
-- git hash: 8-character short hash from the chosen commit basis
-- final path: `docs/{timestamp}_{hash}_项目文档.md`
+使用：
+- 时间戳格式：`YYYY-MM-DD_HH-mm`
+- git hash：所选版本依据对应的 8 位 short hash
+- 最终路径：`docs/{timestamp}_{hash}_项目文档.md`
 
-Create `docs/` only if it does not already exist.
+仅当 `docs/` 不存在时才创建它。
 
-### 3. Check for older project-analysis documents
+### 3. 检查是否已有旧的项目分析文档
 
-Before drafting, inspect `docs/` for existing project-analysis documents.
+起草新文档前，先检查 `docs/` 中是否已有旧的项目分析文档。
 
-Treat a file as relevant when one or more of these is true:
-- filename matches the target naming pattern
-- filename clearly indicates project overview, project analysis, architecture梳理, 项目文档, knowledge base, or similar purpose
-- content is obviously an earlier project-wide analysis document
+满足以下任一条件即可视为“相关旧文档”：
+- 文件名符合目标命名模式
+- 文件名明显表示其用途为项目概览、项目分析、架构梳理、项目文档、knowledge base 或类似用途
+- 文件内容明显是更早的项目级分析文档
 
-If relevant older documents exist:
-- Find the most recent and most relevant one.
-- Read it before drafting the new document.
-- Extract its document version hint if possible from filename or opening notes.
-- Compare that document's apparent version basis with git history and current code.
-- Update incrementally instead of rewriting mechanically.
+如果存在相关旧文档：
+- 找出其中最新且最相关的一份。
+- 起草前先阅读它。
+- 如可能，从文件名或开头说明中提取其文档版本依据。
+- 将该文档的版本依据与 git 历史和当前代码进行比对。
+- 应做“增量更新”，而不是机械式重写。
 
-Focus the incremental review on meaningful changes such as:
-- added or removed core modules
-- changed main flows or call chains
-- changed directory responsibilities
-- changed shared capabilities or infrastructure
-- changed key entities, schemas, DTOs, interfaces, or contracts
-- changed common modification entry points or likely impact surfaces
+增量审查重点关注以下有意义的变化：
+- 核心模块新增或移除
+- 主流程或调用链发生变化
+- 目录职责变化
+- 共享能力或基础设施变化
+- 关键实体、schema、DTO、接口或契约发生变化
+- 常见修改入口或高影响面的变化
 
-If no older document exists:
-- generate from scratch.
+如果没有旧文档：
+- 从零开始生成。
 
-### 4. Build a project understanding before writing
+### 4. 在写作前先建立项目理解
 
-Inspect enough of the repository to classify the project correctly. Do not assume the type in advance.
+要检查足够多的仓库内容，以正确判定项目类型。不要预先假设项目是什么类型。
 
-Actively determine whether the project is primarily:
-- backend
-- frontend
-- full-stack
-- monorepo
-- multi-service or microservice
-- mobile
-- desktop
-- sdk or library
-- tool or cli
-- service platform
-- hybrid of the above
+应主动判断该项目主要属于以下哪一类：
+- 后端（backend）
+- 前端（frontend）
+- 全栈（full-stack）
+- 单仓多包（monorepo）
+- 多服务 / 微服务（multi-service or microservice）
+- 移动端（mobile）
+- 桌面端（desktop）
+- SDK / 类库（sdk or library）
+- 工具 / CLI（tool or cli）
+- 服务平台（service platform）
+- 或以上类型的混合体
 
-Use evidence such as:
-- repository layout
-- package manifests and workspace config
-- build and deployment config
-- routing or controller entrypoints
-- framework bootstrapping
-- service composition
-- db models and migrations
-- tests
-- task runners
-- docs and README files
+判断依据应来自如下证据：
+- 仓库结构
+- package manifest 与 workspace 配置
+- 构建与部署配置
+- 路由或 controller 入口
+- 框架启动过程
+- 服务编排方式
+- 数据库模型与 migration
+- 测试
+- 任务运行器
+- 文档与 README
 
-Read selectively but sufficiently across:
-- README and docs
-- root config and workspace files
-- important manifests and dependency definitions
-- key source directories
-- routes/controllers/pages/components
-- services/use-cases/domain models/entities/repositories
-- middleware/guards/interceptors/filters/events/jobs/queues/schedulers
-- schemas/DTOs/VOs/types/contracts
-- infra/config/logging/cache/auth/permission integration
-- tests when they clarify intended behavior
+应有选择但足够充分地阅读以下内容：
+- README 与 docs
+- 根目录配置与 workspace 文件
+- 重要 manifest 与依赖定义
+- 关键源码目录
+- routes / controllers / pages / components
+- services / use-cases / domain models / entities / repositories
+- middleware / guards / interceptors / filters / events / jobs / queues / schedulers
+- schemas / DTOs / VOs / types / contracts
+- infra / config / logging / cache / auth / permission 集成
+- 在能帮助澄清预期行为时阅读 tests
 
-Separate the code into:
-- business core
-- shared/common capability
-- infrastructure/base layer
-- adapters or boundary glue
-- tooling/scripts/configuration
-- legacy, experimental, or possibly abandoned areas when evidence supports that conclusion
+应将代码区分为：
+- 业务核心
+- 共享 / 公共能力
+- 基础设施 / 基座层
+- 适配器或边界胶水层
+- 工具 / 脚本 / 配置
+- 旧代码、实验代码或疑似废弃区域（仅在有证据支持时如此判断）
 
-### 5. Analyze with depth priorities
+### 5. 设定分析深度优先级
 
-Spend the most effort on:
-1. core call chains
-2. core modules
-3. primary flows
-4. shared mechanisms and reusable infrastructure
+把最多精力放在：
+1. 核心调用链
+2. 核心模块
+3. 主流程
+4. 共享机制与高复用基础设施
 
-Do not give every module equal space.
+不要平均分配篇幅给所有模块。
 
-For large repositories, optimize for what later AI development most needs:
-- main entrypoints
-- business backbone
-- high-frequency modification zones
-- reusable shared capabilities
-- modules with broad downstream impact
-- structural spine of the system
+对于大型仓库，应优先满足后续 AI 开发最需要的信息：
+- 主入口
+- 业务主干
+- 高频修改区域
+- 可复用的共享能力
+- 对下游影响面广的模块
+- 系统的结构主脊梁
 
-### 6. Distinguish evidence levels explicitly
+### 6. 明确区分证据等级
 
-Throughout the document, distinguish among:
-- confirmed from code or config
-- inferred from code structure or usage patterns
-- currently uncertain
-- recommended for human confirmation
+在整篇文档中，要明确区分以下几类内容：
+- 已由代码或配置确认
+- 由代码结构或使用方式推断
+- 当前仍不确定
+- 建议人工确认
 
-Never present an inference as a confirmed fact.
+绝不能把推断写成已确认事实。
 
-### 7. Write and save the document
+### 7. 写出并保存文档
 
-Write the final markdown directly to the required path under `docs/`.
+将最终 markdown 直接写入要求的 `docs/` 路径。
 
-Do not stop at an outline. Produce a complete, high-value document.
+不要只停留在提纲阶段。必须产出完整且有价值的文档。
 
-After writing the file, tell the user the saved path only. No extra summary is required unless the user asks.
+写完文件后，只向用户返回保存路径。除非用户另外要求，否则不需要额外总结。
 
-## Required document structure
+## 必需的文档结构
 
-Use this structure unless the project shape requires a small adaptation. Keep section names explicit and searchable.
+除非项目形态确实需要小幅调整，否则使用以下结构。章节名称必须明确、可检索。
 
 # 项目功能与结构总览文档
 
 ## 0. 文档说明
-Include:
-- generation time
-- repository root or analyzed scope when knowable
-- naming git hash basis
-- whether uncommitted changes existed
-- whether an older document was used as baseline
-- evidence note about confirmed vs inferred vs uncertain content
+应包含：
+- 生成时间
+- 仓库根目录或分析范围（如果可知）
+- 命名所依据的 git hash
+- 是否存在未提交改动
+- 是否使用了旧文档作为基线
+- 关于“已确认 / 推断 / 不确定”内容的证据说明
 
 ## 1. 项目概述
-Cover:
-- main purpose
-- likely target users or business scenario
-- core value
-- main problem currently solved
-- judged project type and evidence
-- judged architecture shape and evidence
+应覆盖：
+- 主要目的
+- 可能的目标用户或业务场景
+- 核心价值
+- 当前主要解决的问题
+- 对项目类型的判断及证据
+- 对架构形态的判断及证据
 
 ## 2. 核心功能总览
-For each core module, explain:
-- module name
-- purpose
-- sub-capabilities
-- external capability it provides
-- main code locations
-- core dependencies
-- relation to other modules
-- why it is core
-- where to look first for future changes
-- likely impact radius of common modifications
+对每个核心模块说明：
+- 模块名称
+- 模块目的
+- 子能力
+- 对外提供的能力
+- 主要代码位置
+- 核心依赖
+- 与其他模块的关系
+- 为什么它是核心模块
+- 后续修改时应先看哪里
+- 常见修改的可能影响范围
 
-Secondary modules may be shorter but still定位清楚.
+次级模块可以更简短，但也要定位清楚。
 
 ## 3. 系统结构与模块分层
-Adapt to the actual project. Explain the real layering or modular shape, such as:
-- request or interaction entry layer
-- business handling layer
-- data access layer
-- model/entity/domain layer
-- middleware/guard/filter/interceptor layer
-- config and infrastructure layer
-- events/jobs/queues/schedulers/message handlers
-- frontend route/component/state structure when present
-- service-to-service boundaries when present
+应根据项目实际情况调整，说明真实的分层或模块化结构，例如：
+- 请求 / 交互入口层
+- 业务处理层
+- 数据访问层
+- 模型 / 实体 / 领域层
+- middleware / guard / filter / interceptor 层
+- 配置与基础设施层
+- events / jobs / queues / schedulers / message handlers
+- 若存在前端，则说明 route / component / state 结构
+- 若存在多服务，则说明服务间边界
 
 ## 4. 目录结构与职责说明
-Explain responsibilities, collaboration, and category of key directories or modules.
-Do not dump a bare tree without commentary.
-Call out when an area appears to be:
-- business core
-- shared capability
-- infrastructure
-- adapter or glue
-- tooling/config
-- legacy or possibly abandoned
+说明关键目录或模块的职责、协作关系和类别。
+不要只给一个没有解释的目录树。
+要指出某些区域看起来更像：
+- 业务核心
+- 共享能力
+- 基础设施
+- 适配器 / 胶水层
+- 工具 / 配置
+- 旧代码或疑似废弃区域
 
 ## 5. 核心链路与主流程
-This is a priority section.
-Describe major end-to-end flows step by step. Examples include:
-- request entry to response
-- login/auth/permission flow
-- create/query/update/delete flow for the main business object
-- file upload/download flow
-- event, queue, callback, cron, or sync flow
-- primary business closure from entry to persistence/output
+这是优先级很高的一节。
+按步骤描述主要端到端流程，例如：
+- 请求进入到响应返回
+- 登录 / 认证 / 权限流程
+- 核心业务对象的增删改查流程
+- 文件上传 / 下载流程
+- 事件、队列、回调、定时任务或同步流程
+- 主要业务闭环：从入口到持久化 / 输出
 
-For each flow, note:
-- start point
-- key modules crossed
-- data flow
-- state transitions when visible
-- shared mechanisms used
-- extension points
-- high-risk modification points
-- likely upstream/downstream impact
+对每条流程，都应说明：
+- 起点
+- 穿过的关键模块
+- 数据流向
+- 可见的状态变化
+- 使用到的共享机制
+- 扩展点
+- 高风险修改点
+- 可能影响的上下游范围
 
 ## 6. 通用能力 / 公共机制 / 高复用基础设施
-This is a priority section.
-Summarize reusable or high-impact capabilities such as:
-- auth and permission
-- config management
-- data access abstraction
-- orm/repository/query layer
-- api or sdk wrappers
-- validation
-- exception handling
-- logging and monitoring
-- cache
-- message or event system
-- scheduling
-- middleware mechanisms
-- plugin mechanisms
-- common base classes, utils, hooks, helpers, service bases
+这是优先级很高的一节。
+总结可复用或高影响范围的能力，例如：
+- 认证与权限
+- 配置管理
+- 数据访问抽象
+- ORM / repository / query 层
+- API 或 SDK 封装
+- 校验
+- 异常处理
+- 日志与监控
+- 缓存
+- 消息 / 事件系统
+- 调度
+- middleware 机制
+- 插件机制
+- 通用基类、utils、hooks、helpers、service base
 
-For each capability, explain:
-- what problem it solves
-- main entrypoints
-- dependent modules
-- when future work should reuse it
-- impact radius if changed
+对每项能力，都应说明：
+- 它解决什么问题
+- 主要入口点
+- 依赖它的模块
+- 后续开发在什么情况下应优先复用它
+- 一旦修改，它的影响范围有多大
 
 ## 7. 数据模型 / 核心实体 / 领域对象（如适用）
-When present, summarize:
-- core entities/models/schemas
-- relationships
-- rough business meaning of important fields when inferable
-- input/output objects vs persistence objects vs domain objects
-- likely impact of entity changes
+如存在，则总结：
+- 核心 entities / models / schemas
+- 彼此关系
+- 重要字段的大致业务含义（若可推断）
+- 输入 / 输出对象、持久化对象与领域对象之间的区别
+- 实体变更可能带来的影响
 
 ## 8. 面向后续 AI 开发的定位与修改指引
-Make this practical.
-Tell later AI:
-- what to read first before new feature work
-- where to start tracing for API logic changes
-- where to inspect for data logic changes
-- what shared capabilities to reuse first
-- which modules are highly coupled or high impact
-- which features span multiple directories and require cross-checking
-- what locations form the system backbone
-- what are common extension points
-- what are common risk points
-- what modification types usually affect which modules
-- suggested search paths for quick requirement localization
+这一节要尽量实用。
+明确告诉后续 AI：
+- 新功能开发前应先读什么
+- API 逻辑变更应从哪里开始追踪
+- 数据逻辑变更应检查哪里
+- 共享能力优先复用哪些
+- 哪些模块耦合高、影响面大
+- 哪些功能横跨多个目录、必须交叉核对
+- 哪些位置构成系统主干
+- 常见扩展点在哪里
+- 常见风险点在哪里
+- 哪类修改通常会影响哪些模块
+- 快速定位需求时建议的搜索路径
 
 ## 9. 旧文档增量更新说明（如适用）
-If an older document was used, include:
-- which older document was referenced
-- major updates vs that baseline
-- which updates came from git-visible changes
-- which updates came from improved interpretation of the codebase
-- what still needs human confirmation
+如果参考了旧文档，应包含：
+- 参考的是哪份旧文档
+- 相比基线有哪些主要更新
+- 哪些更新来自 git 可见变化
+- 哪些更新来自对代码库更深入的重新理解
+- 哪些内容仍需要人工确认
 
 ## 10. 风险、缺失与推断说明
-Call out:
-- partially unconfirmed functions
-- naming/responsibility mismatch
-- hidden conventions
-- suspected abandoned code
-- scattered shared capabilities
-- changes likely to cause large ripple effects
+应指出：
+- 仅部分确认的功能
+- 命名与职责不匹配之处
+- 隐含约定
+- 疑似废弃代码
+- 分散的共享能力
+- 可能引起大范围连锁影响的修改
 
-Split clearly into:
-- confirmed
-- inferred
-- uncertain
-- recommended for human confirmation
+必须清晰拆分为：
+- confirmed（已确认）
+- inferred（推断）
+- uncertain（不确定）
+- recommended for human confirmation（建议人工确认）
 
 ## 11. 后续 AI 开发快速索引
-Provide a compact, searchable index mapping:
-- common request types
-- suggested first modules/directories to inspect
-- representative entry files/services/entities
-- reusable existing capabilities
-- likely impact radius
+提供一份紧凑且可检索的索引，映射：
+- 常见需求类型
+- 建议优先查看的模块 / 目录
+- 代表性入口文件 / 服务 / 实体
+- 可直接复用的现有能力
+- 可能的影响范围
 
-## Output quality rules
+## 输出质量规则
 
-- Explain not only what exists, but how pieces collaborate.
-- Prefer code-backed facts over naming assumptions.
-- Connect functionality that is spread across multiple directories.
-- Mention impact range when giving modification guidance.
-- Keep language professional, precise, restrained, and easy to scan.
-- Avoid empty statements and jargon padding.
-- When the project is large, begin with a high-level framing and then drill down.
+- 不仅要说明“有什么”，还要说明“这些部分如何协作”。
+- 相比命名猜测，应优先依赖代码证据。
+- 对分散在多个目录中的功能，要把它们串联起来说明。
+- 在给出修改指引时，要说明影响范围。
+- 语言要专业、准确、克制、易于扫读。
+- 避免空话和堆砌术语。
+- 对于大型项目，应先给高层框架，再下钻细节。
 
-## Interaction rules
+## 交互规则
 
-- Before writing the final document, finish the repository inspection, git-state handling, naming-basis decision, and old-document check.
-- When uncommitted changes exist, do not continue past inspection until the user decides whether to commit first.
-- Once the user has confirmed how to proceed, continue automatically and save the markdown file.
-- Do not produce a chat summary instead of the file.
-- After completion, return the saved file path.
+- 在写最终文档前，必须先完成仓库检查、git 状态处理、命名依据确定、旧文档检查。
+- 如果存在未提交改动，在用户决定是否先 commit 之前，不得继续往后执行。
+- 一旦用户确认如何继续，就应自动继续并保存 markdown 文件。
+- 不要用聊天摘要代替文件输出。
+- 完成后，只返回保存路径。
