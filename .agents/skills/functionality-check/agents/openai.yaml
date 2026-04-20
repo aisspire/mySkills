@@ -1,0 +1,3 @@
+interface:
+  display_name: "Functionality Check"
+  short_description: "Infer backend functionality, business logic, and data flow from code"

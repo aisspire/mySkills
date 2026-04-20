@@ -1,10 +1,11 @@
-﻿﻿﻿﻿﻿# skills说明
+﻿﻿﻿﻿﻿﻿﻿# skills说明
 
 ### [`skills-editor`](.\.agents\skills\skills-editor)
 
 1. `skill-safety-auditor`：安全审查及优化建议
 2. `skill-optimizer`：优化落地
 3. `skill-workflow-orchestrator`：将上面两者结合
+3. `skill-writing-gate`：参考学习superpower的writing要求把关
 
 ### [`project-knowledge-map`](.\.agents\skills\project-knowledge-map)
 
@@ -13,6 +14,14 @@
 ### [`large-project-ai-guardrails`](.\.agents\skills\large-project-ai-guardrails)
 
 约束模板
+
+### [functionality-check](.\.agents\skills\functionality-check)
+
+功能检查
+
+### [`database-schema-bootstrap`](.\.agents\skills\database-schema-bootstrap)
+
+数据库结构获取
 
 # 安装
 
