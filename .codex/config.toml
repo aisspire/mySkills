@@ -1,0 +1,2 @@
+[shell_environment_policy]
+set = {CODEX_PYTHON = "D:\\Anaconda\\envs\\xcyl\\python.exe"}

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿# skills说明
+﻿﻿﻿﻿﻿﻿﻿﻿﻿# skills说明
 
 ### [`skills-editor`](.\.agents\skills\skills-editor)
 
@@ -6,6 +6,10 @@
 2. `skill-optimizer`：优化落地
 3. `skill-workflow-orchestrator`：将上面两者结合
 3. `skill-writing-gate`：参考学习superpower的writing要求把关
+
+### [`api-doc-generation`](.\.agents\skills\api-doc-generation)
+
+面向前端联调的接口文档生成，要求从真实代码中核对接口类型、路径、请求参数、返回参数、字段约束和接口依赖关系，并裁掉复用 BO/DTO 中当前接口未使用的字段
 
 ### [`project-knowledge-map`](.\.agents\skills\project-knowledge-map)
 
@@ -22,6 +26,25 @@
 ### [`database-schema-bootstrap`](.\.agents\skills\database-schema-bootstrap)
 
 数据库结构获取
+
+
+
+
+
+## codex使用建议
+
+在根目录`.codex`文件夹中，存放了两个配置文件
+
+`config.toml`用来指定python目录，这个适合放在项目级目录下
+
+另外，用户级目录可以添加下面的内容来规范python
+
+```toml
+[shell_environment_policy]
+set = {PYTHONUTF8 = "1",PYTHONIOENCODING = "utf-8",CODEX_PYTHON = "D:\\Anaconda\\python.exe"}
+```
+
+`AGENTS.md`用来进行规范，这里主要是减少报错占用token，并规范报错格式，这个适合放在用户级目录下
 
 # 安装
 
