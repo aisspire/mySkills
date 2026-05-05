@@ -23,3 +23,16 @@
 - Never use the `py` launcher unless the repository instructions explicitly require it.
 - Do not probe multiple alternative toolchains unless the first expected path fails.
 - After one failed environment probe, report the blocker instead of continuing broad exploration.
+
+## PowerShell
+
+- This workspace is opened from WSL/bash. When running PowerShell scripts or tests, use Windows PowerShell via:
+
+  `powershell.exe -NoProfile -ExecutionPolicy Bypass`
+
+- Do not use bare `powershell`; it is not available on PATH in this shell.
+- Quote Windows-style relative paths when passing them through bash. For example:
+
+  `powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tests\profile-skill-search.tests.ps1'`
+
+- If `powershell.exe` fails with a WSL interop or sandbox error, request approval to run it outside the sandbox instead of trying unrelated toolchains.
