@@ -87,12 +87,17 @@ set = {PYTHONUTF8 = "1",PYTHONIOENCODING = "utf-8",CODEX_PYTHON = "D:\\Anaconda\
 
 5. 在你想要添加技能的项目根目录执行 `getskill`
 
-   `getskill` 会通过 `fzf` 搜索可用 skill，并复制到当前项目的 `.\.agents\skills` 目录。搜索过程中如果某个目录下已经存在 `SKILL.md`，会把该目录视为一个完整 skill，并停止继续向下递归，避免把 skill 内部子目录误当成独立 skill。
+   `getskill` 会通过 `fzf` 搜索可用 skill，并复制到当前项目的 `.\.agents\skills` 目录。候选项分为两类：
+
+   - `[skill]`：包含 `SKILL.md` 的单个 skill 目录。
+   - `[set]`：顶层配套目录，目录自身不含 `SKILL.md`，但下面包含多个 skill。
+
+   `fzf` 使用多选模式。直接按 Enter 会复制当前高亮项；使用 Tab 可以选择多个 `[skill]` 或 `[set]` 后批量复制。输入父目录名时，顶层 `[set]` 会优先出现在对应叶子 `[skill]` 前面，适合复制 `skills-editor`、`superpowers`、`pua` 这类配套技能目录。
 
 ## 规范与安装器说明
 
 - `installer.bat` 是推荐入口，适合直接双击或在终端里运行。
 - `src/install.ps1` 负责实际安装逻辑，包括检查 `fzf`、定位 PowerShell profile、写入托管代码块以及替换旧版函数。
 - `profile.ps1` 是安装模板，安装器会从这个模板中自动提取函数名，并在写入前清理用户 profile 中同名的旧模板函数。
-- `规范.md` 约束了 `profile.ps1` 的函数命名和结构：`getskill` 是唯一公开例外，其余函数必须使用 `GS-` 前缀，且必须保持扁平顶层定义，不能嵌套、不能设置别名。
+- `规范.md` 约束了 `profile.ps1` 的函数命名和结构：`getskill` 是唯一公开例外，其余函数必须使用 `GS-` 前缀，且必须保持扁平顶层定义，不能嵌套、不能设置别名。单个 skill 和配套 skill set 都通过 `getskill` 选择，不新增 `getskills` 等公开入口。
 - 如果后续修改 `profile.ps1` 中的 helper 函数，优先保持安装器基于模板自动同步，不要回退到手写函数名列表。
