@@ -19,6 +19,10 @@
 
 约束模板
 
+### [`project-post-change-actions`](.\.agents\skills\project-post-change-actions)
+
+项目修改后的收尾动作模板，例如生成标准 commit 建议、判断 README 是否需要更新，并按项目补充更多动作。
+
 ### [functionality-check](.\.agents\skills\functionality-check)
 
 功能检查

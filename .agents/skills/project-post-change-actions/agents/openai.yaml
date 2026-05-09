@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Post-Change Actions"
+  short_description: "Run project-specific checklist actions after files are modified"
