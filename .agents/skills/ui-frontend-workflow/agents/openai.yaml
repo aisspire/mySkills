@@ -1,0 +1,3 @@
+display_name: UI Frontend Workflow
+short_description: Self-contained UI/UX design, frontend implementation, and review workflow.
+default_prompt: Use this skill when UI, UX, frontend implementation, visual polish, responsive behavior, accessibility, or web interface review is involved.

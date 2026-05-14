@@ -31,8 +31,16 @@
   `powershell.exe -NoProfile -ExecutionPolicy Bypass`
 
 - Do not use bare `powershell`; it is not available on PATH in this shell.
+
 - Quote Windows-style relative paths when passing them through bash. For example:
 
   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tests\profile-skill-search.tests.ps1'`
 
 - If `powershell.exe` fails with a WSL interop or sandbox error, request approval to run it outside the sandbox instead of trying unrelated toolchains.
+
+- Avoid nested unescaped double quotes in `powershell.exe -Command "..."`.
+
+- For `rg` regex patterns containing `|`, always use single quotes:
+   `rg -n 'foo|bar|baz' 'path'`
+
+- Prefer direct commands over wrapping PowerShell inside PowerShell.
