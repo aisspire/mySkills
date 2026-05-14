@@ -72,13 +72,15 @@ Commit scope modes:
 
 Check whether `README.md` should change because of the current modifications.
 
+**REQUIRED SUB-SKILL:** Use `readme-generation` when a README update is recommended, when `README.md` is missing and creation would be useful, or when the user asks to draft/apply the README change. Use it to inspect project facts, request missing screenshots/background/safety details, and draft truthful README content.
+
 Always provide one of these outcomes:
 
 - `README change recommended`: list the exact sections to update and the proposed content at a high level.
 - `README change not needed`: explain briefly why the change set does not affect README-level usage, setup, behavior, or documentation.
 - `README missing`: say no `README.md` was found and suggest whether creating one is useful.
 
-If a README update is recommended, ask the user whether to apply it. Do not edit `README.md` until the user confirms.
+If a README update is recommended, ask the user whether to apply it. Do not edit `README.md` until the user confirms. If the user confirms, invoke `readme-generation` and keep the edit scoped to the confirmed README work.
 
 ## Adding More Actions
 

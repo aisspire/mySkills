@@ -1,0 +1,4 @@
+interface:
+  display_name: "README Generation"
+  short_description: "Draft, rewrite, and review project README files"
+  default_prompt: "Use $readme-generation to draft or improve this project README."
