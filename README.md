@@ -23,6 +23,8 @@
 
 项目修改后的收尾动作模板，例如生成标准 commit 建议、判断 README 是否需要更新，并按项目补充更多动作。
 
+内置子 skill：`subskills/readme-generation`，用于在收尾流程中起草、改写或审核 README。复制 `project-post-change-actions` 时会一起带走；如果需要单独使用 README 生成能力，可以把该子目录复制到普通 skills 目录并作为 `readme-generation` 使用。
+
 ### [`ui-frontend-workflow`](.\.agents\skills\ui-frontend-workflow)
 
 自包含的 UI / UX / 前端工作流 skill，触发 UI、前端页面、组件、视觉优化、响应式、可访问性或界面审查相关任务时使用。它按“设计 → 实现 → 审查”的流程工作：先产出产品与设计系统判断，再按项目技术栈落地实现，最后检查 Web/UI 质量、交互状态、可访问性和响应式问题。
