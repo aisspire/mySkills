@@ -19,6 +19,12 @@
 
 约束模板
 
+### [`project-norms`](.\.agents\skills\project-norms)
+
+项目级习惯规范记忆模板，用于记录用户在特定项目中反复确认的测试、安全、提交、文档、汇报等协作习惯。使用时要求 AI 在被规范约束前先列出本次生效规范、来源、置信度和例外，避免把一次性指令或错误路径依赖偷偷固化为长期规则。
+
+该 skill 与 `large-project-ai-guardrails` 分工不同：`project-norms` 管用户确认过的项目习惯和可纠偏记忆；`large-project-ai-guardrails` 管架构边界、禁改区、所有权和大项目探索规则。
+
 ### [`project-post-change-actions`](.\.agents\skills\project-post-change-actions)
 
 项目修改后的收尾动作模板，例如生成标准 commit 建议、判断 README 是否需要更新，并按项目补充更多动作。
