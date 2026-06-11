@@ -1,0 +1,4 @@
+interface:
+  display_name: "Experience Capture"
+  short_description: "Append development lessons into docs experience logs"
+  default_prompt: "Use $experience-capture to append this session's development lessons to a docs experience record."

@@ -43,7 +43,11 @@
 
 为尊重开源社区，已在 skill 内保留可获得的原始许可证副本：`licenses/frontend-design-LICENSE.txt` 和 `licenses/ui-ux-pro-max-LICENSE.txt`；`web-design-guidelines` 本地来源未包含单独 LICENSE 文件，因此在 `THIRD_PARTY_NOTICES.md` 中保留来源和作者信息。
 
-### [functionality-check](.\.agents\skills\functionality-check)
+### [`experience-capture`](.\.agents\skills\experience-capture)
+
+开发经验沉淀 skill，用于在用户要求总结经验、复盘、写到 docs，或一次会话中出现多轮修改、失败返工、跨模块排查时，将过程、问题路由、尝试记录和可复用结论追加到 `docs/experience/<主题>.md`。指定已有文档时会先读取历史内容，再按相似问题追加，不删除旧经历。
+
+### [`functionality-check`](.\.agents\skills\functionality-check)
 
 功能检查
 
