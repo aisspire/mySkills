@@ -1,5 +1,15 @@
 ﻿﻿﻿﻿﻿﻿﻿﻿﻿# skills说明
 
+### [`ai-dev-workflow`](.\.agents\skills\ai-dev-workflow)
+
+新的 AI 辅助开发工作流 skill set，便于整体迁移发布。内部 skill 保持独立触发，不会每次加载整套内容。
+
+1. `skill-maintenance`：统一 skill 创建、审查、优化、合并、writing 合规、多轮复审和发布确认流程。
+2. `project-docs-workflow`：维护文档驱动开发体系，包含 `docs/index.md`、`project.md`、`features/`、`api/`、`data/`、`tests/`、`architecture/`、`flows/`、`adr/`、`ai/` 模板。
+3. `project-closeout`：开发后收尾，检查 docs/README 是否需要更新，汇总验证状态，并给出中文 Conventional Commit 建议。
+4. `project-rules-maintainer`：记录项目级 AI 规则候选和反复问题，生成 `AGENTS.md` 建议补丁，不直接修改 `AGENTS.md`。
+5. `api-doc-generation`：保留为独立重型接口全量核对能力，需要从真实 controller/router/service/DTO/VO/BO 使用链路核对时触发。
+
 ### [`skills-editor`](.\.agents\skills\skills-editor)
 
 1. `skill-safety-auditor`：安全审查及优化建议

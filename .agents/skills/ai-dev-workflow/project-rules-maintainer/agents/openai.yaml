@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Rules Maintainer"
+  short_description: "记录项目级 AI 规则候选，并生成 AGENTS.md 建议补丁。"
+  default_prompt: "帮我整理反复出现的项目协作规则候选，并生成 AGENTS.md 建议补丁，不要直接修改 AGENTS.md。"

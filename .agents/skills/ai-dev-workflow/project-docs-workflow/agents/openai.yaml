@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Docs Workflow"
+  short_description: "建立和维护索引化项目文档体系，让 AI 按需读取最小上下文。"
+  default_prompt: "帮我为这个项目建立或更新 docs/index.md、features、api、data、tests、architecture、flows 和 adr 文档体系。"

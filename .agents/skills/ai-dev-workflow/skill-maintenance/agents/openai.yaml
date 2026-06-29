@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Maintenance"
+  short_description: "审查、优化、合并和发布 Codex skills，保留多轮复审与合规门禁。"
+  default_prompt: "帮我审查或优化这个 skill，保留安全风险、writing 合规、触发条件和发布确认。"
