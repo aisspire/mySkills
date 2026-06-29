@@ -2,6 +2,8 @@
 
 ### [`ai-dev-workflow`](.\.agents\skills\ai-dev-workflow)
 
+**推荐使用。** 这是新的 AI 辅助开发工作流 skill set，用于承接部分旧 skill 的职责。
+
 新的 AI 辅助开发工作流 skill set，便于整体迁移发布。内部 skill 保持独立触发，不会每次加载整套内容。
 
 1. `skill-maintenance`：统一 skill 创建、审查、优化、合并、writing 合规、多轮复审和发布确认流程。
@@ -12,6 +14,8 @@
 
 ### [`skills-editor`](.\.agents\skills\skills-editor)
 
+**建议弃用。** 原因：职责已合并到 `ai-dev-workflow/skill-maintenance`，新入口保留了多轮审查、安全风险、writing 合规、When to Use / When NOT to Use 结构和发布确认机制，避免四个子 skill 之间重复触发和维护成本过高。
+
 1. `skill-safety-auditor`：安全审查及优化建议
 2. `skill-optimizer`：优化落地
 3. `skill-workflow-orchestrator`：将上面两者结合
@@ -19,17 +23,25 @@
 
 ### [`api-doc-generation`](.\.agents\skills\api-doc-generation)
 
+**旧路径建议弃用，功能不弃用。** 原因：该能力已复制到 `ai-dev-workflow/api-doc-generation` 并保持独立重型核对定位。后续迁移发布时优先使用新套装内入口，减少根目录重复 skill；需要真实 controller/router/service/DTO/VO/BO 全链路核对时仍应使用这个能力。
+
 面向前端联调的接口文档生成，要求从真实代码中核对接口类型、路径、请求参数、返回参数、字段约束和接口依赖关系，并裁掉复用 BO/DTO 中当前接口未使用的字段
 
 ### [`project-knowledge-map`](.\.agents\skills\project-knowledge-map)
+
+**建议弃用。** 原因：一次性生成大型项目知识地图容易变重、变旧，也不符合当前“索引 + 功能文档 + 接口文档 + 数据文档 + 测试文档 + 架构文档 + 流程文档 + ADR”的按需读取思路。后续由 `ai-dev-workflow/project-docs-workflow` 承接文档体系 bootstrap、索引维护和局部更新。
 
 生成项目架构，可辅助ai进行快速认知项目
 
 ### [`large-project-ai-guardrails`](.\.agents\skills\large-project-ai-guardrails)
 
+**建议弃用。** 原因：稳定的大项目边界和协作硬规则更适合写进项目级 `AGENTS.md`，不适合作为每次额外触发的 skill。候选规则、反复问题和补丁建议由 `ai-dev-workflow/project-rules-maintainer` 维护。
+
 约束模板
 
 ### [`project-norms`](.\.agents\skills\project-norms)
+
+**建议弃用。** 原因：原目标是补充 `AGENTS.md`，但自动记忆不够频繁且容易把一次性偏好固化。新方案改为 `ai-dev-workflow/project-rules-maintainer`：只记录候选规则和反复问题，生成 `AGENTS.md` 建议补丁，不直接修改或静默生效。
 
 项目级习惯规范记忆模板，用于记录用户在特定项目中反复确认的测试、安全、提交、文档、汇报等协作习惯。使用时要求 AI 在被规范约束前先列出本次生效规范、来源、置信度和例外，避免把一次性指令或错误路径依赖偷偷固化为长期规则。
 
@@ -37,11 +49,15 @@
 
 ### [`project-post-change-actions`](.\.agents\skills\project-post-change-actions)
 
+**建议弃用。** 原因：开发后收尾已经扩展为“根据文档索引检查更新 docs、判断 README、说明验证状态、给出 commit 建议”的闭环，旧入口只覆盖 post-change checklist。后续由 `ai-dev-workflow/project-closeout` 承接；README 更新能力仍可作为子能力保留或按需单独抽出。
+
 项目修改后的收尾动作模板，例如生成标准 commit 建议、判断 README 是否需要更新，并按项目补充更多动作。
 
 内置子 skill：`subskills/readme-generation`，用于在收尾流程中起草、改写或审核 README。复制 `project-post-change-actions` 时会一起带走；如果需要单独使用 README 生成能力，可以把该子目录复制到普通 skills 目录并作为 `readme-generation` 使用。
 
 ### [`ui-frontend-workflow`](.\.agents\skills\ui-frontend-workflow)
+
+**保留。** 原因：UI / UX / 前端工作流是独立领域能力，不参与本轮合并。
 
 自包含的 UI / UX / 前端工作流 skill，触发 UI、前端页面、组件、视觉优化、响应式、可访问性或界面审查相关任务时使用。它按“设计 → 实现 → 审查”的流程工作：先产出产品与设计系统判断，再按项目技术栈落地实现，最后检查 Web/UI 质量、交互状态、可访问性和响应式问题。
 
@@ -55,13 +71,19 @@
 
 ### [`experience-capture`](.\.agents\skills\experience-capture)
 
+**暂不弃用，冻结观察。** 原因：当前体验是记录内容偏多偏杂，但本轮尚未设计替代方案，先不迁移、不删除。
+
 开发经验沉淀 skill，用于在用户要求总结经验、复盘、写到 docs，或一次会话中出现多轮修改、失败返工、跨模块排查时，将过程、问题路由、尝试记录和可复用结论追加到 `docs/experience/<主题>.md`。指定已有文档时会先读取历史内容，再按相似问题追加，不删除旧经历。
 
 ### [`functionality-check`](.\.agents\skills\functionality-check)
 
+**保留。** 原因：用于后端功能路径理解和完整性检查，当前没有被新套装完全替代。
+
 功能检查
 
 ### [`database-schema-bootstrap`](.\.agents\skills\database-schema-bootstrap)
+
+**保留。** 原因：数据库真实 schema 发现是独立高风险事实核对能力，本轮明确不讨论、不合并。
 
 数据库结构获取
 
