@@ -147,12 +147,22 @@ set = {PYTHONUTF8 = "1",PYTHONIOENCODING = "utf-8",CODEX_PYTHON = "D:\\Anaconda\
 
 5. 在你想要添加技能的项目根目录执行 `getskill`
 
-   `getskill` 会通过 `fzf` 搜索可用 skill，并复制到当前项目的 `.\.agents\skills` 目录。候选项分为两类：
+   `getskill` 会通过 `fzf` 搜索可用 skill，并默认以目录 junction 的形式链接到当前项目的 `.\.agents\skills` 目录。候选项分为两类：
 
    - `[skill]`：包含 `SKILL.md` 的单个 skill 目录。
    - `[set]`：顶层配套目录，目录自身不含 `SKILL.md`，但下面包含多个 skill。
 
-   `fzf` 使用多选模式。直接按 Enter 会复制当前高亮项；使用 Tab 可以选择多个 `[skill]` 或 `[set]` 后批量复制。输入父目录名时，顶层 `[set]` 会优先出现在对应叶子 `[skill]` 前面，适合复制 `skills-editor`、`superpowers`、`pua` 这类配套技能目录。
+   `fzf` 使用多选模式。直接按 Enter 会链接当前高亮项；使用 Tab 可以选择多个 `[skill]` 或 `[set]` 后批量链接。输入父目录名时，顶层 `[set]` 会优先出现在对应叶子 `[skill]` 前面，适合安装 `skills-editor`、`superpowers`、`pua` 这类配套技能目录。
+
+   默认链接使用 Windows 目录 junction（等价于 `mklink /J`），比目录符号链接（`mklink /D`）更适合本地 skill 目录，因为通常不需要管理员权限或开发者模式。链接模式便于后续更新：仓库内 skill 更新后，项目里的链接会直接看到新内容。
+
+   如果需要保留旧版复制行为，执行：
+
+   ```powershell
+   getskill -c
+   ```
+
+   `-c` 会把选中的 skill 或 set 复制到当前项目，后续不会跟随仓库内源目录更新。
 
 ## 规范与安装器说明
 
