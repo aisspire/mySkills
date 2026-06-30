@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backlog Capture"
+  short_description: "Capture deferred feature hooks"
+  default_prompt: "Use $backlog-capture to record this deferred feature in docs/BACKLOG.md."
