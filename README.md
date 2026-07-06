@@ -84,16 +84,59 @@
 
 ### [`database-schema-bootstrap`](.\.agents\skills\database-schema-bootstrap)
 
-**保留。** 原因：数据库真实 schema 发现是独立高风险事实核对能力，本轮明确不讨论、不合并。
+用于让 AI 在写 SQL、做迁移、排查字段问题或生成 CRUD 代码前，先从真实数据库读取元数据。这里的元数据只包括库名、表名、字段、索引、键和约束等结构信息；不读取业务行、不统计行数、不执行用户给的任意 SQL、不做写操作。
 
-数据库元数据获取。项目配置放在项目根目录 `.agents/database-schema-bootstrap/profiles/default.json`，不放在 skill 目录；密码通过 Windows Credential Manager 读取，不写入配置文件。当前能力只覆盖列库、列表、表结构，不读取业务数据、不执行任意 SQL、不做写操作。
-`credential_target` 按项目、引擎、主机、数据库和用户命名隔离；PostgreSQL 列库使用 `connection_database` 或 `maintenance_database` 显式连接维护库，MySQL 列库不要求预先指定 database。
+项目配置放在目标项目根目录 `.agents/database-schema-bootstrap/profiles/default.json`，不放在 skill 目录。密码不写入 profile，只通过 `credential_target` 去 Windows Credential Manager 读取。
+
+Profile 字段名使用 snake_case。比如实际字段叫 `connection_database`，不是 `connectionDatabase` 或 `connectiondatabase`。
+
+字段速查：
+
+| 字段 | 作用 | 什么时候填 |
+| --- | --- | --- |
+| `db_type` | 数据库类型。 | 必填，取值为 `mysql`、`postgres` 或 `sqlite`。 |
+| `database` | 目标业务数据库名。AI 后续列表、查表结构、写 SQL 时主要面向这个库。MySQL 里它也基本等同于 schema 名。 | MySQL/PostgreSQL 做 `list-tables` 或 `describe` 时填写。MySQL 只做 `list-databases` 时可以临时不填。 |
+| `connection_database` | PostgreSQL 专用的“先连进去的入口库”。它只是为了执行 `list-databases`，不代表业务库。常见值是 `postgres`。旧别名 `maintenance_database` 也能用。 | PostgreSQL 想列出所有数据库，且 DSN 没有自带库名时填写。MySQL 不填。 |
+| `schema` | 数据库内部的命名空间筛选。PostgreSQL 常见是 `public`；MySQL 通常不用单独填，因为 MySQL 的 `database` 已经是筛选范围。 | PostgreSQL 表不在 `public`，或只想列某个 schema 下的表时填写。不确定时可先不填，让脚本列出来。 |
+| `user` | 用来探查元数据的数据库用户。 | MySQL/PostgreSQL 必填。建议使用只读或仅元数据权限账号。 |
+| `credential_target` | Windows Credential Manager 里的密码目标名称。profile 里只保存这个名字，不保存密码。 | MySQL/PostgreSQL 必填，并且每个项目、主机、库、用户都要单独命名。 |
+| `target_tables` | 默认关注的表名清单，只是给 AI/人工流程看的提示。它不是连接目标，也不是密码 target。 | 可选。知道本次常查哪些表时填写；不确定就删除或留空。 |
+| `sqlite_path` | SQLite 数据库文件路径。 | 仅 SQLite 使用。 |
+
+PostgreSQL 最常见填法：
+
+```json
+{
+  "db_type": "postgres",
+  "host": "db.example.test",
+  "port": 5432,
+  "database": "app_database",
+  "connection_database": "postgres",
+  "schema": "public",
+  "user": "readonly_metadata_user",
+  "credential_target": "database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user",
+  "target_tables": ["users", "orders"]
+}
+```
+
+MySQL 最常见填法：
+
+```json
+{
+  "db_type": "mysql",
+  "host": "db.example.test",
+  "port": 3306,
+  "database": "app_database",
+  "user": "readonly_metadata_user",
+  "credential_target": "database-schema-bootstrap/example-project/mysql/db.example.test/app_database/readonly_metadata_user"
+}
+```
 
 简易操作：
 
 1. 在目标项目中安装或链接 `database-schema-bootstrap` skill。
 2. 复制 `.agents/skills/database-schema-bootstrap/references/profile.example.json` 到项目根目录 `.agents/database-schema-bootstrap/profiles/default.json`。
-3. 修改 profile 中的 `db_type`、`host`、`port`、`database`、`connection_database`、`schema`、`user` 和 `credential_target`。MySQL 列库可以不填 `database`；PostgreSQL 列库建议 `connection_database` 填 `postgres`。
+3. 按上面的字段速查修改 profile。PostgreSQL 通常是 `database` 填业务库、`connection_database` 填 `postgres`、`schema` 填 `public`；MySQL 通常只填 `database`，不填 `connection_database` 和 `schema`。
 4. 用隐藏输入写入密码：
 
    ```powershell
