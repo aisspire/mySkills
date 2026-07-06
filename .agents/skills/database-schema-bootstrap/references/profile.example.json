@@ -1,0 +1,12 @@
+{
+  "project": "example-project",
+  "db_type": "postgres",
+  "host": "db.example.test",
+  "port": 5432,
+  "database": "app_database",
+  "connection_database": "postgres",
+  "schema": "public",
+  "user": "readonly_metadata_user",
+  "credential_target": "database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user",
+  "target_tables": ["users", "orders"]
+}

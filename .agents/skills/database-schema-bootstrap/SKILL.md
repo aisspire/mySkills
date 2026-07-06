@@ -1,220 +1,230 @@
 ---
 name: database-schema-bootstrap
-description: Use when a task involves existing database tables, SQL generation, schema understanding, migrations, joins, data debugging, or CRUD work, and accurate progress depends on discovering the real table structure rather than relying on a manual column description.
+description: Use when a task depends on real database metadata, including listing databases, listing tables, inspecting table structure, SQL generation, migrations, joins, data debugging, or CRUD work; uses project-level non-secret config and read-only metadata introspection. 用于依赖真实数据库元数据的任务，包括列库、列表、查看表结构、SQL 生成、迁移、关联分析、数据问题排查或 CRUD 开发；使用项目级非密钥配置和只读元数据探查。
 ---
 
-# Database Schema Bootstrap
+# Database Schema Bootstrap（数据库结构引导）
 
-## Overview
+## 概览
 
-Use this skill to reduce back-and-forth when a request depends on an existing database schema.
+当任务依赖真实数据库结构，而不是手写或猜测的表描述时，使用这个 skill。
 
-Core principle: load one shared config file, resolve a usable Python interpreter, inspect the real table definition through a Python script, then write SQL or implementation advice from discovered facts instead of guessed columns.
+核心原则：从项目级 `.agents` 目录读取非密钥 profile，由脚本从操作系统密钥库读取密码，只探查元数据，再基于真实 schema 事实编写 SQL 或实现建议。
 
-## When to Use
+这个 skill 只用于发现元数据：
 
-- the user wants SQL for existing tables
-- the task depends on column names, types, defaults, keys, or indexes
-- the request involves joins, migrations, CRUD code, or debugging schema mismatches
-- the user knows table names but does not want to handwrite the full structure
-- the project may already contain reusable database connection settings
+- 数据库名称
+- 表名称
+- 表结构、字段、默认值、键、索引，以及数据库支持时的约束信息
 
-## When NOT to Use
+不得读取业务行、样例数据、行数，也不得执行任意 SQL。
 
-- the schema is brand new and no real database exists yet
-- the task is purely conceptual database design
-- the user already supplied authoritative DDL and does not need introspection
-- the task is unrelated to databases
+## 何时使用
 
-## Core Rule
+- 用户要为已有表编写 SQL
+- 任务依赖字段名、类型、默认值、键或索引
+- 请求涉及关联查询、迁移、CRUD 代码或 schema 不匹配排查
+- 用户想知道有哪些数据库或表
+- 项目可能已经有可复用的数据库连接配置
 
-Do not guess table structures.
+## 何时不要使用
 
-Do not perform write operations during schema discovery. The introspection phase is read-only unless the user explicitly asks for a mutation later.
+- schema 是全新设计，尚无真实数据库
+- 任务只是概念性数据库设计
+- 用户已经提供权威 DDL，且不需要连接数据库核对
+- 任务要求读取或修改业务数据
+- 任务与数据库无关
 
-Before writing SQL, migration steps, data fixes, or root-cause analysis for an existing database:
+## 安全边界
 
-1. Check whether this skill contains a usable database configuration.
-2. If the configuration is still a placeholder or incomplete, ask the user for the connection details and target tables.
-3. If the configuration is usable, connect first and inspect the target table definition.
-4. Base the rest of the work on the discovered schema, not on assumptions.
+不要猜表结构。
 
-## Quick Reference
+不要要求用户把密码粘贴到聊天中。
 
-- Shared config file: [references/database.env.example](references/database.env.example)
-- Config field notes: [references/config-template.md](references/config-template.md)
-- Python script: [scripts/inspect_schema.py](scripts/inspect_schema.py)
-- Python command behavior: use configured `PYTHON_BIN`; if blank, auto-discover a local interpreter
-- Missing config: ask only for the missing database fields
-- Broken Python environment: stop and ask the user to maintain the environment, then give concrete setup commands
-- Discovery priority: Python script first, direct SQL fallback second
-- Safety boundary: discovery is read-only
+不要从 AI 可见的文件中读取密码。
 
-## Required Inputs
+元数据发现阶段不得运行 `SELECT *`、抽样查询、行数统计、`INSERT`、`UPDATE`、`DELETE`、`ALTER`、`DROP`，也不得执行用户提供的任意 SQL。
 
-Check [references/database.env.example](references/database.env.example) and [references/config-template.md](references/config-template.md) before asking the user anything.
+只能使用具备元数据或只读权限的数据库账号。脚本限制能减少误操作，但数据库权限才是最终安全边界。
 
-Treat the configuration as missing when any critical field is blank or still uses placeholders such as:
+Windows Credential Manager 可以避免密码通过项目文件和命令输出意外暴露。它不能防御同一 Windows 用户下运行的恶意进程，因此数据库权限仍必须禁止写操作和业务数据读取。
 
-- `__PYTHON_BIN__`
-- `__DB_TYPE__`
-- `__DB_HOST__`
-- `__DB_PORT__`
-- `__DB_NAME__`
-- `__DB_USER__`
-- `__DB_PASSWORD__`
-- `__DB_SCHEMA__`
-- `__TARGET_TABLES__`
+如果项目 profile 包含 `password`、`DB_PASSWORD` 或带密码的 DSN，必须停止使用该配置，并要求用户把密钥迁移到操作系统密钥库。
 
-Treat `PYTHON_BIN` differently from database settings:
+为已有数据库编写 SQL、迁移步骤、数据修复方案或根因分析前：
 
-- if `PYTHON_BIN` is blank or placeholder, try to find Python automatically
-- if Python is found but the environment lacks required database drivers, ask the user to maintain that environment
-- do not ask the user for a Python path until auto-discovery has failed
+1. 检查项目是否存在可用的非密钥 profile。
+2. 如果 profile 缺失或不完整，只询问缺失的非密钥字段。
+3. 如果 profile 可用，先连接并探查元数据。
+4. 后续工作必须基于已发现的 schema，而不是基于假设。
 
-When database configuration is missing, ask only for the minimum needed to proceed:
+## 快速参考
 
-- database type
-- connection address or DSN
-- database name
-- schema name if applicable
-- target table name or names
-- read-only credential preference if the user has one
+- 项目 profile 路径：`.agents/database-schema-bootstrap/profiles/default.json`
+- 配置字段说明：[references/config-template.md](references/config-template.md)
+- profile 示例：[references/profile.example.json](references/profile.example.json)
+- Python 脚本：[scripts/inspect_schema.py](scripts/inspect_schema.py)
+- 密钥初始化脚本：[scripts/set_db_secret.ps1](scripts/set_db_secret.ps1)
+- 命令：`list-databases`、`list-tables`、`describe --table <name>`
+- 配置缺失：只询问缺失的非密钥字段
+- Python 环境损坏：停止并要求用户维护环境，同时给出具体修复命令
+- 安全边界：只读元数据；不读取数据行、行数，不执行任意 SQL 或写操作
 
-## Operating Procedure
+## 必要输入
 
-### 1. Classify the request
+询问用户前，先阅读 [references/config-template.md](references/config-template.md) 和 [references/profile.example.json](references/profile.example.json)。
 
-Use this workflow when the task depends on an existing database, for example:
+项目 profile 必须放在 skill 目录外，避免链接安装或更新 skill 时覆盖项目配置：
 
-- writing or correcting SQL
-- explaining data relationships
-- preparing migrations
-- debugging bad joins, missing columns, or type mismatches
-- generating CRUD code from existing tables
-- auditing or validating schema assumptions
+```text
+.agents/database-schema-bootstrap/profiles/default.json
+```
 
-If the user is designing a brand-new schema from scratch and no live database exists yet, skip the connection step and gather requirements normally.
+必填 profile 字段：
 
-### 2. Check the skill configuration
+- `db_type`: `mysql`, `postgres`, or `sqlite`
+- `sqlite_path`：SQLite 使用
+- `host`、`database`、`user`、`credential_target`：MySQL 或 PostgreSQL 使用
+- `connection_database` 或 `maintenance_database`：PostgreSQL 执行 `list-databases` 时用于先连接的维护库，通常填 `postgres`
+- `schema`：数据库引擎使用 schema 且目标 schema 已知时填写
 
-Open [references/database.env.example](references/database.env.example) first, then read [references/config-template.md](references/config-template.md).
+可选字段：
 
-If the database fields still contain placeholders, tell the user that the skill is not configured for this project yet and ask only for the missing connection details.
+- `port`
+- `target_tables`：人工工作流中的默认表列表
 
-If the file contains project-specific values, use them as the default connection source for this task.
+`credential_target` 必须按项目隔离，建议包含 project、engine、host、database 和 user，例如 `database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user`。永远不要向用户索要密码值。要求用户通过 [scripts/set_db_secret.ps1](scripts/set_db_secret.ps1) 初始化该目标。
 
-Do not assume the configured connection is safe for write operations. During schema discovery, use the least-privilege or read-only path whenever possible.
+## 操作流程
 
-### 3. Resolve Python before introspection
+### 1. 判断请求类型
 
-Use `PYTHON_BIN` from the shared config when it contains a real value.
+当任务依赖已有数据库时使用此流程，例如：
 
-If `PYTHON_BIN` is blank or still a placeholder, try a bounded local discovery order:
+- 列出可用数据库
+- 列出可用表
+- 查看表定义
+- 编写或修正 SQL
+- 解释数据关系
+- 准备迁移
+- 排查错误关联、缺失字段或类型不匹配
+- 基于已有表生成 CRUD 代码
+- 审计或验证 schema 假设
 
-1. `.venv/Scripts/python.exe` or `.venv/bin/python`
-2. `venv/Scripts/python.exe` or `venv/bin/python`
-3. `python`
-4. `py -3` on Windows
+如果用户是在从零设计新 schema，且没有真实数据库，则跳过连接步骤，按普通需求澄清流程处理。
 
-If auto-discovery finds a working interpreter, continue with that interpreter and mention that the configured Python path was missing.
+### 2. 检查项目配置
 
-If no usable interpreter is found, ask the user to provide or maintain the Python runtime path.
+查找 `.agents/database-schema-bootstrap/profiles/default.json`。
 
-If Python exists but the environment is unsuitable, for example because a required driver such as `psycopg`, `psycopg2`, `pymysql`, or `mysql-connector-python` is missing, stop and ask the user to maintain the environment. Give concrete setup guidance such as:
+如果文件缺失，要求用户基于 [references/profile.example.json](references/profile.example.json) 创建配置，并通过 [scripts/set_db_secret.ps1](scripts/set_db_secret.ps1) 初始化密码。
 
-- "Use the project virtualenv and install the database driver there."
-- "`python -m pip install psycopg[binary]` for PostgreSQL."
-- "`python -m pip install pymysql` or `python -m pip install mysql-connector-python` for MySQL."
-- "If the project pins dependencies, update its lockfile or environment spec instead of installing ad hoc globally."
+如果 profile 存在但关键字段缺失，只询问缺失的非密钥字段。
 
-### 4. Prefer Python-based schema introspection over user-written descriptions
+如果 profile 包含明文凭据，不要使用它。要求用户移除明文密钥，并将密码存入 Windows Credential Manager。
 
-Once connection details are available, inspect the target table definitions before continuing.
+### 3. 探查前确认 Python 环境
 
-Preferred order:
+使用当前项目中 assistant 正常可用的 Python 运行时。
 
-1. Run [scripts/inspect_schema.py](scripts/inspect_schema.py) with the shared config file and target tables.
-2. Get the actual `CREATE TABLE` statement if the engine exposes it directly.
-3. If `CREATE TABLE` is not directly available, gather equivalent metadata for columns, defaults, indexes, primary keys, foreign keys, and constraints.
-4. Summarize the discovered schema back to the user only when it helps the next step.
+如果 Python 存在但环境不可用，例如缺少 `psycopg`、`psycopg2`、`pymysql` 或 `mysql-connector-python` 等数据库驱动，停止并要求用户维护环境。给出明确修复建议，例如：
 
-Do not ask the user to manually enumerate every column unless:
+- 使用项目虚拟环境，并把数据库驱动安装到该环境。
+- PostgreSQL 使用 `python -m pip install psycopg[binary]`。
+- MySQL 使用 `python -m pip install pymysql` 或 `python -m pip install mysql-connector-python`。
+- 如果项目锁定依赖，更新项目 lockfile 或环境声明，不要临时全局安装。
 
-- database access is unavailable
-- Python auto-discovery failed and no interpreter was provided
-- credentials fail
-- the Python environment is missing required drivers and the user has not fixed it yet
-- permissions block introspection
-- the target is not a real database yet
+### 4. 优先使用 Python 脚本探查 schema
 
-During this step, avoid `INSERT`, `UPDATE`, `DELETE`, `ALTER`, `DROP`, or any other mutating command. Schema discovery is not a license to change data or structure.
+项目元数据访问可用后，先探查数据库元数据，再继续后续工作。
 
-### 5. Continue with the real schema
+支持的命令：
 
-After introspection:
+- `list-databases`：只列出数据库名称
+- `list-tables`：只列出表名称
+- `describe --table <name>`：只返回表结构
 
-- use the discovered column names and types in all SQL
-- call out missing indexes, nullability, defaults, and constraints when relevant
-- mention any uncertainty that remains because introspection was partial
+如果数据库引擎能直接提供 `CREATE TABLE`，优先获取真实建表语句。如果不能直接获取，则收集字段、默认值、索引、主键、外键和约束等等价元数据。
 
-## Output Discipline
+只有在有助于后续任务时，才向用户总结已发现的 schema。
 
-When you had to ask the user for connection details, keep the request short and concrete.
+除非出现以下情况，否则不要要求用户手动枚举所有字段：
 
-When `PYTHON_BIN` was missing but auto-discovery worked, say that explicitly.
+- 数据库访问不可用
+- Python 环境不可用且用户尚未修复
+- 凭据失败
+- Python 环境缺少必要驱动且用户尚未修复
+- 权限阻止元数据探查
+- 目标还不是真实数据库
 
-When the Python environment is unsuitable, be direct that the user must maintain it, then give a concrete recovery path instead of hand-waving.
+此步骤中避免任何读取数据行的查询和所有变更命令。发现 schema 不代表可以读取或修改数据。
 
-When you were able to inspect the schema, prefer language like:
+### 5. 基于真实 schema 继续
 
-- "I used the configured schema-introspection script first."
-- "I inspected the table definition first."
-- "The schema shows these columns and constraints."
-- "The SQL below is based on the discovered table structure."
+探查后：
 
-This makes it clear that the answer comes from the database shape, not from guesswork.
+- 所有 SQL 都使用已发现的字段名和类型
+- 需要时说明缺失索引、可空性、默认值和约束
+- 如果探查结果不完整，明确说明仍存在的不确定性
 
-## Fallback Rules
+## 输出规范
 
-If connection details are unavailable or access fails:
+必须询问连接信息时，只询问非密钥字段，并保持请求简短具体。
 
-1. Tell the user what exact information is still missing.
-2. Ask for either a usable connection string or the output of the table DDL.
-3. If the user cannot provide access, ask for the minimum manual substitute:
-   - column names and types
-   - primary key
-   - indexes
-   - foreign keys
+当 Python 环境不可用时，直接说明需要用户维护环境，并给出具体恢复路径，不要泛泛而谈。
 
-Do not pretend the schema is known when it is not.
+成功探查 schema 后，优先使用类似表述：
 
-If Python runtime resolution fails:
+- “我先使用项目元数据探查脚本核对了数据库结构。”
+- “我先检查了数据库元数据。”
+- “schema 显示这些字段和约束。”
+- “下面的 SQL 基于已发现的表结构。”
 
-1. Say whether `PYTHON_BIN` was missing, invalid, or auto-discovery failed.
-2. Ask the user to provide a valid interpreter path or to repair the project environment.
-3. Give a concrete suggestion:
-   - "Activate the project virtualenv and re-run the script with that interpreter."
-   - "Install the required driver into the interpreter you want this skill to use."
-   - "Update `PYTHON_BIN` in the shared config file once the environment is ready."
+这样可以明确答案来自真实数据库结构，而不是猜测。
 
-## Common Mistakes
+## 兜底规则
 
-- treating a placeholder-filled shared config file as a valid runtime configuration
-- asking the user for every column before attempting introspection
-- asking for a Python path before trying bounded auto-discovery
-- continuing after the script reports missing drivers or an unsuitable environment
-- writing SQL against guessed column names or guessed foreign keys
-- using a high-privilege connection for simple schema discovery
-- mixing schema discovery with data mutation in the same step
-- describing the discovered schema as certain when introspection returned only partial metadata
+如果项目 profile 不可用：
 
-## Verification Status
+1. 告诉用户确切缺失路径。
+2. 只询问非密钥连接字段。
+3. 要求用户单独初始化操作系统密钥。
 
-This version has been statically improved for clarity, discoverability, and safer behavior boundaries.
+如果凭据、网络、驱动或权限阻止访问：
 
-It has not yet been proven through the full `writing-skills` RED -> GREEN -> REFACTOR loop with recorded baseline failure evidence and pressure-scenario validation.
+1. 报告失败命令。
+2. 说明根因。
+3. 给出精确修复方式。
+4. 给出修复后应重新运行的完整命令。
 
-## Introspection Reference
+如果数据库访问不可行，先要求用户提供 DDL 输出作为人工替代。只有 DDL 也不可用时，才要求用户提供最小手动描述：
 
-Use [references/schema-introspection.md](references/schema-introspection.md) for engine-specific ways to obtain `CREATE TABLE` statements or equivalent metadata.
+- 字段名和类型
+- 主键
+- 索引
+- 外键
+
+schema 未知时，不要假装已经知道。
+
+## 常见错误
+
+- 把密码存入 `.agents/database-schema-bootstrap/profiles/*.json`
+- 把项目配置放进 `.agents/skills/database-schema-bootstrap`
+- 多个项目共用 `database-schema-bootstrap/default` 这类泛化 `credential_target`
+- 要求用户在聊天中粘贴凭据
+- 未尝试探查就要求用户列出所有字段
+- 脚本报告缺少驱动或环境不可用后仍继续
+- 基于猜测字段名或猜测外键编写 SQL
+- 为简单 schema 发现使用高权限连接
+- 在同一步骤混合 schema 发现、数据读取或数据变更
+- 探查只返回部分元数据时仍把结果描述为完全确定
+
+## 验证状态
+
+此版本已有单元测试覆盖项目级配置路径、明文密钥拒绝、mock 凭据读取、CLI 子命令和 SQLite 仅元数据探查。
+
+此版本尚未使用只读凭据连接真实 MySQL 或 PostgreSQL 服务器验证，因此不要宣称这些引擎已完成完整运行时验证。
+
+## 探查参考
+
+使用 [references/schema-introspection.md](references/schema-introspection.md) 查看不同数据库引擎获取 `CREATE TABLE` 或等价元数据的方式。
