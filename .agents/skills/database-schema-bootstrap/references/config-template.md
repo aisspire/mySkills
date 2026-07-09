@@ -8,6 +8,12 @@
 .agents/database-schema-bootstrap/profiles/default.json
 ```
 
+这个文件在文档中称为 project profile。调用 `inspect_schema.py` 时，显式传入该文件的参数名是 `--config`：
+
+```powershell
+python '.agents\skills\database-schema-bootstrap\scripts\inspect_schema.py' describe --config '.agents\database-schema-bootstrap\profiles\default.json' --table users
+```
+
 该文件必须放在 `.agents/skills/database-schema-bootstrap` 外部。安装后的 skill 可能通过链接指向共享源仓库，并会独立于每个项目更新；项目配置不能被 skill 更新覆盖。
 
 ## 密钥处理
