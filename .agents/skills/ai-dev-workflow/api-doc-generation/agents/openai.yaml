@@ -1,3 +1,4 @@
 interface:
   display_name: "接口文档生成"
-  short_description: "Generate frontend-facing API docs from backend code with verified fields and dependencies"
+  short_description: "从后端代码生成可直接联调的版本化接口文档"
+  default_prompt: "Use $api-doc-generation to produce or update a frontend-ready API document from the current backend code, including complete request and response fields, business flows, errors, and version differences."

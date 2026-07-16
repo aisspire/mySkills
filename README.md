@@ -1,4 +1,6 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿# skills说明
+﻿﻿# README
+
+## skills说明
 
 ### [`ai-dev-workflow`](.\.agents\skills\ai-dev-workflow)
 
@@ -12,49 +14,6 @@
 4. `project-rules-maintainer`：记录项目级 AI 规则候选和反复问题，生成 `AGENTS.md` 建议补丁，不直接修改 `AGENTS.md`。
 5. `api-doc-generation`：保留为独立重型接口全量核对能力，需要从真实 controller/router/service/DTO/VO/BO 使用链路核对时触发。
 6. `backlog-capture`：只在用户明确要求记录未来功能或暂不实现功能时，维护 `docs/BACKLOG.md` 的一句话钩子，不更新 `docs/index.md`。
-
-### [`skills-editor`](.\.agents\skills\skills-editor)
-
-**建议弃用。** 原因：职责已合并到 `ai-dev-workflow/skill-maintenance`，新入口保留了多轮审查、安全风险、writing 合规、When to Use / When NOT to Use 结构和发布确认机制，避免四个子 skill 之间重复触发和维护成本过高。
-
-1. `skill-safety-auditor`：安全审查及优化建议
-2. `skill-optimizer`：优化落地
-3. `skill-workflow-orchestrator`：将上面两者结合
-3. `skill-writing-gate`：参考学习superpower的writing要求把关
-
-### [`api-doc-generation`](.\.agents\skills\api-doc-generation)
-
-**旧路径建议弃用，功能不弃用。** 原因：该能力已复制到 `ai-dev-workflow/api-doc-generation` 并保持独立重型核对定位。后续迁移发布时优先使用新套装内入口，减少根目录重复 skill；需要真实 controller/router/service/DTO/VO/BO 全链路核对时仍应使用这个能力。
-
-面向前端联调的接口文档生成，要求从真实代码中核对接口类型、路径、请求参数、返回参数、字段约束和接口依赖关系，并裁掉复用 BO/DTO 中当前接口未使用的字段
-
-### [`project-knowledge-map`](.\.agents\skills\project-knowledge-map)
-
-**建议弃用。** 原因：一次性生成大型项目知识地图容易变重、变旧，也不符合当前“索引 + 功能文档 + 接口文档 + 数据文档 + 测试文档 + 架构文档 + 流程文档 + ADR”的按需读取思路。后续由 `ai-dev-workflow/project-docs-workflow` 承接文档体系 bootstrap、索引维护和局部更新。
-
-生成项目架构，可辅助ai进行快速认知项目
-
-### [`large-project-ai-guardrails`](.\.agents\skills\large-project-ai-guardrails)
-
-**建议弃用。** 原因：稳定的大项目边界和协作硬规则更适合写进项目级 `AGENTS.md`，不适合作为每次额外触发的 skill。候选规则、反复问题和补丁建议由 `ai-dev-workflow/project-rules-maintainer` 维护。
-
-约束模板
-
-### [`project-norms`](.\.agents\skills\project-norms)
-
-**建议弃用。** 原因：原目标是补充 `AGENTS.md`，但自动记忆不够频繁且容易把一次性偏好固化。新方案改为 `ai-dev-workflow/project-rules-maintainer`：只记录候选规则和反复问题，生成 `AGENTS.md` 建议补丁，不直接修改或静默生效。
-
-项目级习惯规范记忆模板，用于记录用户在特定项目中反复确认的测试、安全、提交、文档、汇报等协作习惯。使用时要求 AI 在被规范约束前先列出本次生效规范、来源、置信度和例外，避免把一次性指令或错误路径依赖偷偷固化为长期规则。
-
-该 skill 与 `large-project-ai-guardrails` 分工不同：`project-norms` 管用户确认过的项目习惯和可纠偏记忆；`large-project-ai-guardrails` 管架构边界、禁改区、所有权和大项目探索规则。
-
-### [`project-post-change-actions`](.\.agents\skills\project-post-change-actions)
-
-**建议弃用。** 原因：开发后收尾已经扩展为“根据文档索引检查更新 docs、判断 README、说明验证状态、给出 commit 建议”的闭环，旧入口只覆盖 post-change checklist。后续由 `ai-dev-workflow/project-closeout` 承接；README 更新能力仍可作为子能力保留或按需单独抽出。
-
-项目修改后的收尾动作模板，例如生成标准 commit 建议、判断 README 是否需要更新，并按项目补充更多动作。
-
-内置子 skill：`subskills/readme-generation`，用于在收尾流程中起草、改写或审核 README。复制 `project-post-change-actions` 时会一起带走；如果需要单独使用 README 生成能力，可以把该子目录复制到普通 skills 目录并作为 `readme-generation` 使用。
 
 ### [`ui-frontend-workflow`](.\.agents\skills\ui-frontend-workflow)
 

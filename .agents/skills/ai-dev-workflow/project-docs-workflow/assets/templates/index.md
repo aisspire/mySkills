@@ -1,37 +1,46 @@
 # 文档索引
 
+> 本文件只做路由。先读这里，再按任务打开最小相关文档。
+
 ## 项目入口
 
-- `project.md`：
-- `architecture/overview.md`：
-- `flows/ai_feature_change_flow.md`：
+- 项目背景：`project.md`
+- 架构入口：`architecture/overview.md`
+- 项目协作规则：`../AGENTS.md`（存在时）
 
-## 模块索引
+## 模块路由
 
-| 模块 | 功能文档 | API 文档 | 数据文档 | 测试文档 | 流程文档 | 状态 |
-| --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |
+| 模块 | 功能 | 流程 | API 摘要 | 数据 | 验收 | 详细交付 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |  |
 
 ## 任务路由
 
-| 任务类型 | 优先读取 |
-| --- | --- |
-| 新功能 | `features/`、`tests/`、相关 `flows/` |
-| 接口调整 | `api/`、`features/`、`data/` |
-| 数据调整 | `data/`、`architecture/overview.md` |
-| 架构调整 | `architecture/`、`adr/` |
-| 规则维护 | `ai/rule_candidates.md`、`ai/agents_patch_suggestions.md` |
+| 任务类型 | 优先读取 | 必要时再读 |
+| --- | --- | --- |
+| 功能或规则 | `features/`、相关 `flows/`、`tests/` | `data/`、实施记录 |
+| 接口语义 | `api/`、`features/`、相关 `flows/` | `data/`、详细接口文档 |
+| 数据语义 | `data/`、`features/` | 架构、ADR |
+| 状态或流程 | `flows/`、`features/`、`tests/` | API、数据 |
+| 架构 | `architecture/` | ADR |
+| 历史决策 | 当前文档 | 实施记录、ADR、`old/` |
 
 ## 权威来源
 
-- 代码：
+- 业务口径：
+- 代码与配置：
 - 接口：
 - 数据：
-- 测试：
-- 部署：
+- 验证：
 
 ## 已知 Drift
 
-| 文档 | 问题 | 发现时间 | 处理状态 |
+| 文档或代码 | 冲突 | 当前判断 | 处理状态 |
 | --- | --- | --- | --- |
 |  |  |  |  |
+
+## 历史材料
+
+历史和已失效方案不进入默认路由，只保留追溯入口：
+
+- `old/`：
