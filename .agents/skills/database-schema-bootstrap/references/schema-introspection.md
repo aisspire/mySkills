@@ -19,7 +19,7 @@ python .\.agents\skills\database-schema-bootstrap\scripts\inspect_schema.py desc
 - `list-databases` 输出数据库名称
 - `list-tables` 输出表名称
 - 对支持直接获取的数据库引擎输出 `CREATE TABLE`
-- 对不支持直接获取的数据库引擎输出等价元数据
+- 对不支持直接获取的数据库引擎输出字段、约束、索引等价元数据
 - 永不输出数据行、行数、样例数据或密码
 - 配置或驱动缺失时，用可操作的错误信息退出
 
@@ -123,6 +123,33 @@ LEFT JOIN information_schema.key_column_usage kcu
 WHERE tc.table_schema = 'public'
   AND tc.table_name = 'table_name';
 ```
+
+索引元数据查询（`describe` 的 `indexes` 字段会返回这些信息）：
+
+```sql
+SELECT
+  index_relation.relname AS name,
+  index_definition.indisunique AS unique,
+  index_definition.indisprimary AS primary,
+  index_definition.indisvalid AS valid,
+  access_method.amname AS method,
+  pg_get_indexdef(index_definition.indexrelid) AS definition,
+  pg_get_expr(index_definition.indpred, index_definition.indrelid) AS predicate
+FROM pg_catalog.pg_index AS index_definition
+JOIN pg_catalog.pg_class AS table_relation
+  ON table_relation.oid = index_definition.indrelid
+JOIN pg_catalog.pg_namespace AS table_namespace
+  ON table_namespace.oid = table_relation.relnamespace
+JOIN pg_catalog.pg_class AS index_relation
+  ON index_relation.oid = index_definition.indexrelid
+JOIN pg_catalog.pg_am AS access_method
+  ON access_method.oid = index_relation.relam
+WHERE table_namespace.nspname = 'public'
+  AND table_relation.relname = 'table_name'
+ORDER BY index_relation.relname;
+```
+
+`definition` 可保留表达式索引、`INCLUDE` 列和排序规则等完整定义；`predicate` 在部分索引中返回条件，否则为 `NULL`。
 
 PostgreSQL 不像 MySQL 一样提供简单内置的 `SHOW CREATE TABLE`。当 `pg_dump` 不可用时，收集等价元数据，并说明表 DDL 是根据 catalog views 重建的。
 

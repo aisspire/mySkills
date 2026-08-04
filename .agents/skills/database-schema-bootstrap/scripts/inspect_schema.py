@@ -738,6 +738,43 @@ def postgres_schema(config: dict[str, Any], table: str) -> dict[str, Any]:
             }
             for row in cursor.fetchall()
         ]
+        cursor.execute(
+            """
+            SELECT
+              index_relation.relname,
+              index_definition.indisunique,
+              index_definition.indisprimary,
+              index_definition.indisvalid,
+              access_method.amname,
+              pg_get_indexdef(index_definition.indexrelid),
+              pg_get_expr(index_definition.indpred, index_definition.indrelid)
+            FROM pg_catalog.pg_index index_definition
+            JOIN pg_catalog.pg_class table_relation
+              ON table_relation.oid = index_definition.indrelid
+            JOIN pg_catalog.pg_namespace table_namespace
+              ON table_namespace.oid = table_relation.relnamespace
+            JOIN pg_catalog.pg_class index_relation
+              ON index_relation.oid = index_definition.indexrelid
+            JOIN pg_catalog.pg_am access_method
+              ON access_method.oid = index_relation.relam
+            WHERE table_namespace.nspname = %s
+              AND table_relation.relname = %s
+            ORDER BY index_relation.relname
+            """,
+            (schema_name, table),
+        )
+        indexes = [
+            {
+                "name": row[0],
+                "unique": bool(row[1]),
+                "primary": bool(row[2]),
+                "valid": bool(row[3]),
+                "method": row[4],
+                "definition": row[5],
+                "predicate": row[6],
+            }
+            for row in cursor.fetchall()
+        ]
         if not columns:
             raise ConfigError(
                 f"Table not found in PostgreSQL schema `{schema_name}`: {table}"
@@ -749,6 +786,7 @@ def postgres_schema(config: dict[str, Any], table: str) -> dict[str, Any]:
             "ddl": None,
             "columns": columns,
             "constraints": constraints,
+            "indexes": indexes,
             "note": (
                 "PostgreSQL metadata returned because SHOW CREATE TABLE is not "
                 "available."
