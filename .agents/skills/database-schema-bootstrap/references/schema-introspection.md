@@ -1,191 +1,36 @@
-# Schema 探查参考
+# PostgreSQL Schema 探查参考
 
-优先使用 Python 脚本。只有辅助脚本无法运行，且用户仍需要精确元数据查询时，才退回到直接 SQL 模式。
+schema 探查只能通过 `database-schema-bootstrap` MCP 工具完成。AI 侧 adapter 只调用独立 metadata service；AI 不应直接执行下面类型的数据库命令，也不应调用旧版 CLI。
 
-## 首选路径
+## 工具契约
 
-使用 `.agents/database-schema-bootstrap/profiles/default.json` 中的项目 profile 运行 [../scripts/inspect_schema.py](../scripts/inspect_schema.py)。
+### `list_databases`
 
-典型命令：
+只返回非模板 PostgreSQL 数据库名称。它使用 profile 的 `connection_database` 作为连接入口。
 
-```powershell
-python .\.agents\skills\database-schema-bootstrap\scripts\inspect_schema.py list-databases
-python .\.agents\skills\database-schema-bootstrap\scripts\inspect_schema.py list-tables
-python .\.agents\skills\database-schema-bootstrap\scripts\inspect_schema.py describe --table users --table orders
-```
+### `list_tables`
 
-预期行为：
+只返回 profile 指定 schema 中的基础表名称，不读取表行。
 
-- `list-databases` 输出数据库名称
-- `list-tables` 输出表名称
-- 对支持直接获取的数据库引擎输出 `CREATE TABLE`
-- 对不支持直接获取的数据库引擎输出字段、约束、索引等价元数据
-- 永不输出数据行、行数、样例数据或密码
-- 配置或驱动缺失时，用可操作的错误信息退出
+### `describe_table`
 
-MySQL 的 `list-databases` 可以只连接到 server，不要求 profile 预先填写 `database`。
+输入一个未限定的表名，返回：
 
-PostgreSQL 的 `list-databases` 必须先连接到某个数据库。profile 应填写 `connection_database` 或 `maintenance_database`，常用值为 `postgres`；如果 DSN 已包含数据库名，也可由 DSN 提供。
+- 字段名、类型、可空性和默认值
+- 约束名称、类型和字段
+- 索引名称、唯一性、主键标记、有效性、访问方法、定义和条件
 
-## MySQL or MariaDB
+工具不会返回业务行、样例值、行数或执行计划。
 
-列出数据库：
+## 失败处理
 
-```sql
-SELECT SCHEMA_NAME
-FROM information_schema.SCHEMATA
-ORDER BY SCHEMA_NAME;
-```
+如果 MCP adapter 或独立服务不可用、profile 缺失、Credential Manager 中没有凭据、驱动缺失或数据库权限不足：
 
-列出表：
+1. 报告失败类别和需要人工修复的非密钥信息。
+2. 不要求用户粘贴密码。
+3. 不改用 `psql`、Python、旧 CLI 或任意 SQL。
+4. 修复后由人工重启独立服务和 MCP adapter，再调用白名单工具。
 
-```sql
-SELECT TABLE_SCHEMA, TABLE_NAME
-FROM information_schema.TABLES
-WHERE TABLE_TYPE = 'BASE TABLE'
-ORDER BY TABLE_SCHEMA, TABLE_NAME;
-```
+## 事实边界
 
-查看表结构：
-
-```sql
-SHOW CREATE TABLE `table_name`;
-```
-
-如果需要指定 schema 名称：
-
-```sql
-SHOW CREATE TABLE `database_name`.`table_name`;
-```
-
-可用的兜底元数据查询：
-
-```sql
-SELECT
-  COLUMN_NAME,
-  COLUMN_TYPE,
-  IS_NULLABLE,
-  COLUMN_DEFAULT,
-  COLUMN_KEY,
-  EXTRA
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'database_name'
-  AND TABLE_NAME = 'table_name'
-ORDER BY ORDINAL_POSITION;
-```
-
-## PostgreSQL
-
-列出数据库：
-
-```sql
-SELECT datname
-FROM pg_database
-WHERE datistemplate = false
-ORDER BY datname;
-```
-
-列出表：
-
-```sql
-SELECT table_schema, table_name
-FROM information_schema.tables
-WHERE table_type = 'BASE TABLE'
-  AND table_schema NOT IN ('pg_catalog', 'information_schema')
-ORDER BY table_schema, table_name;
-```
-
-字段元数据 SQL 兜底：
-
-```sql
-SELECT
-  column_name,
-  data_type,
-  is_nullable,
-  column_default
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'table_name'
-ORDER BY ordinal_position;
-```
-
-可用的约束元数据查询：
-
-```sql
-SELECT
-  tc.constraint_name,
-  tc.constraint_type,
-  kcu.column_name
-FROM information_schema.table_constraints tc
-LEFT JOIN information_schema.key_column_usage kcu
-  ON tc.constraint_name = kcu.constraint_name
- AND tc.table_schema = kcu.table_schema
-WHERE tc.table_schema = 'public'
-  AND tc.table_name = 'table_name';
-```
-
-索引元数据查询（`describe` 的 `indexes` 字段会返回这些信息）：
-
-```sql
-SELECT
-  index_relation.relname AS name,
-  index_definition.indisunique AS unique,
-  index_definition.indisprimary AS primary,
-  index_definition.indisvalid AS valid,
-  access_method.amname AS method,
-  pg_get_indexdef(index_definition.indexrelid) AS definition,
-  pg_get_expr(index_definition.indpred, index_definition.indrelid) AS predicate
-FROM pg_catalog.pg_index AS index_definition
-JOIN pg_catalog.pg_class AS table_relation
-  ON table_relation.oid = index_definition.indrelid
-JOIN pg_catalog.pg_namespace AS table_namespace
-  ON table_namespace.oid = table_relation.relnamespace
-JOIN pg_catalog.pg_class AS index_relation
-  ON index_relation.oid = index_definition.indexrelid
-JOIN pg_catalog.pg_am AS access_method
-  ON access_method.oid = index_relation.relam
-WHERE table_namespace.nspname = 'public'
-  AND table_relation.relname = 'table_name'
-ORDER BY index_relation.relname;
-```
-
-`definition` 可保留表达式索引、`INCLUDE` 列和排序规则等完整定义；`predicate` 在部分索引中返回条件，否则为 `NULL`。
-
-PostgreSQL 不像 MySQL 一样提供简单内置的 `SHOW CREATE TABLE`。当 `pg_dump` 不可用时，收集等价元数据，并说明表 DDL 是根据 catalog views 重建的。
-
-## SQLite
-
-列出表：
-
-```sql
-SELECT name
-FROM sqlite_master
-WHERE type = 'table'
-  AND name NOT LIKE 'sqlite_%'
-ORDER BY name;
-```
-
-查看表结构：
-
-```sql
-SELECT sql
-FROM sqlite_master
-WHERE type = 'table'
-  AND name = 'table_name';
-```
-
-可用的兜底元数据查询：
-
-```sql
-PRAGMA table_info('table_name');
-```
-
-## 探查失败时
-
-如果凭据、网络、驱动或权限阻止访问：
-
-1. 报告失败命令。
-2. 说明根因。
-3. 给出精确修复方式。
-4. 给出修复后应重新运行的完整命令。
-5. 如果仍无法访问，先要求 DDL 输出，再接受手动表结构描述。
+MCP 返回的字段、约束和索引是已确认的 schema 事实。工具未返回的内容必须标记为不确定，不得通过业务数据查询补齐。

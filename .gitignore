@@ -17,3 +17,4 @@ compliance/
 optimized/
 review/
 workflow_index/
+__pycache__
