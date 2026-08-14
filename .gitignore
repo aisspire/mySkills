@@ -2,6 +2,11 @@ docs/
 last30days/
 superpowers/
 tests/
+!tests/
+tests/*
+!tests/test_database_schema_bootstrap.py
+!tests/database_schema_bootstrap_fake_service.py
+!tests/database-schema-bootstrap-*
 anthropics/
 xlsx/
 docx/

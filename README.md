@@ -1,4 +1,4 @@
-﻿﻿# README
+﻿# README
 
 ## skills说明
 
@@ -43,60 +43,48 @@
 
 ### [`database-schema-bootstrap`](.\.agents\skills\database-schema-bootstrap)
 
-用于让 AI 在写 SQL、做迁移、排查字段问题或生成 CRUD 代码前，通过 PostgreSQL metadata-only MCP 工具读取真实 schema。AI 只能调用 `list_databases`、`list_tables`、`describe_table`，不直接连接数据库、不接触密码、不执行用户 SQL。
+用于在写 SQL、迁移、字段排查或 CRUD 前读取真实 PostgreSQL schema。AI 只可调用 `list_databases`、`list_tables`、`describe_table`，不得直连数据库、读取密码或执行任意 SQL。
 
-数据库驱动、profile、Credential Manager 和固定 catalog 查询已与 AI 侧入口分离，位于根目录 [`mcp/database-schema-bootstrap`](./mcp/database-schema-bootstrap)。AI 侧 skill 只包含 stdio MCP adapter 和 RPC 客户端；独立服务必须由人工或受控 Windows Service 提前启动。
+全局 MCP adapter 与受控服务运行时安装到 `%USERPROFILE%\.codex\database-schema-bootstrap`，源码仓库只作为安装与升级来源。每个 Git 项目独立维护 profile、状态文件、动态 loopback 端口和实例令牌；profile 缺失或项目身份无法确认时 adapter 会失败关闭，绝不复用其他项目的数据库。
 
-项目配置放在目标项目根目录 `.agents/database-schema-bootstrap/profiles/default.json`，不放在 skill 目录。密码不写入 profile，只通过 `credential_target` 去 Windows Credential Manager 读取。
+安装命令：
 
-Profile 字段名使用 snake_case。比如实际字段叫 `connection_database`，不是 `connectionDatabase` 或 `connectiondatabase`。
-
-字段速查：
-
-| 字段 | 作用 | 什么时候填 |
-| --- | --- | --- |
-| `db_type` | 数据库类型。 | 必填，只能是 `postgres`。 |
-| `database` | 目标业务数据库名。 | 必填。 |
-| `connection_database` | `list_databases` 使用的 PostgreSQL 入口库。 | 必填，通常是 `postgres`。 |
-| `schema` | PostgreSQL schema 筛选。 | 可选，默认 `public`。 |
-| `user` | 元数据数据库用户。 | 必填，建议使用最小权限账号。 |
-| `credential_target` | Windows Credential Manager 目标名称。 | 必填，不是密码值。 |
-| `target_tables` | 默认关注的表名清单，只是给 AI/人工流程看的提示。它不是连接目标，也不是密码 target。 | 可选。知道本次常查哪些表时填写；不确定就删除或留空。 |
-
-PostgreSQL 最常见填法：
-
-```json
-{
-  "db_type": "postgres",
-  "host": "db.example.test",
-  "port": 5432,
-  "database": "app_database",
-  "connection_database": "postgres",
-  "schema": "public",
-  "user": "readonly_metadata_user",
-  "credential_target": "database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user",
-  "target_tables": ["users", "orders"]
-}
+```powershell
+.\tools\database-schema-bootstrap\install.ps1 -PythonPath 'C:\Path\to\python.exe'
 ```
 
-简易操作：
+也可仅设置 `CODEX_PYTHON` 后省略 `-PythonPath`。安装器只替换自己的 `~/.codex/config.toml` 受管区块，并在其中配置 MCP 与 `SessionStart` hook，不会修改 `hooks.json` 或其他 Codex 配置。
 
-1. 在目标项目中安装或链接 `database-schema-bootstrap` skill。
-2. 复制 `.agents/skills/database-schema-bootstrap/references/profile.example.json` 到项目根目录 `.agents/database-schema-bootstrap/profiles/default.json`。
-3. 按上面的字段速查修改 PostgreSQL profile，安装并启动根目录 `mcp/database-schema-bootstrap` 独立服务，再配置 AI 侧 stdio MCP adapter。详细启动方式见 `.agents/skills/database-schema-bootstrap/references/mcp-stdio.md`。
-4. 用隐藏输入写入密码：
+**简易使用方法（三步上手）**：
 
-   ```powershell
-   E:\code\skills\mcp\database-schema-bootstrap\set_db_secret.ps1 -Target "database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user"
-   ```
+```powershell
+# ① 安装全局运行时（每台机器一次；重复执行即为升级）
+.\tools\database-schema-bootstrap\install.ps1 -PythonPath 'C:\Path\to\python.exe'
 
-5. 通过 MCP 客户端确认只显示三个白名单工具。AI 不得运行 Python、`psql`、旧 CLI 或任意 SQL 作为替代路径。
+# ② 在目标 Git 项目内运行中文交互向导，一次性完成：
+#    添加 profile → 隐藏输入密码 → 可选设为活动并启动服务
+$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
+& $dbs profile add -ProjectPath .
 
-   ```text
-   请使用 database-schema-bootstrap 的 MCP 工具读取 schema；为了验证账号真的可用，不要读取任何业务行，也不要执行 SQL。
-   ```
+# ③ 新开 Codex 会话，AI 即可调用三个白名单 MCP 工具读取 schema
+#    list_databases / list_tables / describe_table
+```
 
-   正确行为：AI 只能调用 `list_databases`、`list_tables` 和 `describe_table`，并明确拒绝直接连接数据库、读取密码和执行任意 SQL。
+之后每次会话由 `SessionStart` hook 自动启动/复用该项目服务，无需手动操作。删除配置：`& $dbs profile remove -ProjectPath .`（交互选择）；卸载：`.\tools\database-schema-bootstrap\uninstall.ps1 -All -ConfirmAll`。
+
+项目 profile 工作流（参数化方式，等价于向导）：
+
+```powershell
+$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
+& $dbs profile add -ProjectPath . -Name default -DatabaseHost db.example.test -Database app_database -DatabaseUser readonly_metadata_user
+& $dbs profile login -ProjectPath . -Name default
+& $dbs profile use -ProjectPath . -Name default
+& $dbs status -ProjectPath .
+```
+
+密码仅通过隐藏输入存入当前 Windows 用户的 Credential Manager，绝不会进入 profile、命令参数、MCP 配置、日志或工具参数。`active-profile.json` 优先；没有它时只自动使用 `default.json`。详细安装、升级、并发与卸载说明见 [全局运行时文档](./tools/database-schema-bootstrap/README.md)；skill 侧约束见 [database-schema-bootstrap](./.agents/skills/database-schema-bootstrap/SKILL.md)。
+
+`active-profile`（不区分大小写）是保留名称，不能作为 profile 名写入文件。卸载选择 `config` 或 `runtime` 会自动扩展为 `config,runtime,state`；单独 `state` 只清理服务状态。旧半状态使用 `uninstall.ps1 -Repair -ConfirmAll`，孤儿服务记录使用 `& $dbs session-reap -ProjectPath .`，均不会重建凭据或强杀无法验证身份的进程。
 
 
 

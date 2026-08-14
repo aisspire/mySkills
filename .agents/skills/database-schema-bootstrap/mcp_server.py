@@ -2,16 +2,31 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 from collections.abc import Callable
+from pathlib import Path
 from typing import TypeVar
 
 from mcp.server import MCPServer
 
+from project_routing import ProjectMetadataRouter
 from rpc_client import MetadataServiceClient, MetadataServiceError
 
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+
+
+def _finite_positive_timeout(value: str) -> float:
+    try:
+        timeout = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "timeout must be a finite positive number."
+        ) from exc
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise argparse.ArgumentTypeError("timeout must be a finite positive number.")
+    return timeout
 
 
 def _safe_call(operation: str, callback: Callable[[], T]) -> T:
@@ -57,26 +72,30 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--endpoint",
-        default="http://127.0.0.1:8765",
-        help="Loopback endpoint of the separately started metadata service.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--timeout",
-        type=float,
-        default=10.0,
-        help="RPC timeout in seconds.",
+        type=_finite_positive_timeout,
+        default=25.0,
+        help="End-to-end routing timeout in seconds.",
     )
     return parser.parse_args(argv)
 
 
-def build_server(endpoint: str, timeout: float = 10.0) -> MCPServer:
-    return create_server(MetadataServiceClient(endpoint, timeout=timeout))
+def build_server(timeout: float = 25.0) -> MCPServer:
+    state_root = Path(__file__).resolve().parent.parent / "state" / "projects"
+    return create_server(ProjectMetadataRouter(state_root, timeout=timeout))
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        server = build_server(args.endpoint, args.timeout)
+        if args.endpoint is not None:
+            raise MetadataServiceError(
+                "Static metadata service endpoints are not allowed."
+            )
+        server = build_server(args.timeout)
     except MetadataServiceError as exc:
         logger.error("MCP adapter startup failed: %s", exc)
         return 1
@@ -86,4 +105,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

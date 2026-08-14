@@ -143,7 +143,9 @@ class PostgresMetadataService:
                     FROM information_schema.table_constraints tc
                     LEFT JOIN information_schema.key_column_usage kcu
                       ON tc.constraint_name = kcu.constraint_name
+                     AND tc.constraint_schema = kcu.constraint_schema
                      AND tc.table_schema = kcu.table_schema
+                     AND tc.table_name = kcu.table_name
                     WHERE tc.table_schema = %s
                       AND tc.table_name = %s
                     ORDER BY tc.constraint_name, kcu.ordinal_position

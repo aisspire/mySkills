@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 from http import HTTPStatus
@@ -12,6 +13,7 @@ from .protocol import MetadataOperations, dispatch_metadata
 
 logger = logging.getLogger(__name__)
 METADATA_PATH = "/v1/metadata"
+HEALTH_PATH = "/v1/health"
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 
@@ -20,9 +22,18 @@ class MetadataHttpServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, address, service: MetadataOperations):
+    def __init__(
+        self,
+        address,
+        service: MetadataOperations,
+        *,
+        instance_token: str | None = None,
+        project_id: str | None = None,
+    ):
         super().__init__(address, MetadataRequestHandler)
         self.metadata_service = service
+        self.instance_token = instance_token
+        self.project_id = project_id
 
 
 class MetadataRequestHandler(BaseHTTPRequestHandler):
@@ -51,9 +62,24 @@ class MetadataRequestHandler(BaseHTTPRequestHandler):
     def _error(self, status: HTTPStatus, message: str) -> None:
         self._write_json(status, {"ok": False, "error": message})
 
+    def _is_instance_authorized(self) -> bool:
+        expected_token = self.server.instance_token  # type: ignore[attr-defined]
+        if expected_token is None:
+            return True
+        received_token = self.headers.get("X-Database-Schema-Bootstrap-Token", "")
+        return hmac.compare_digest(received_token, expected_token)
+
+    def _require_instance_token(self) -> bool:
+        if self._is_instance_authorized():
+            return True
+        self._error(HTTPStatus.FORBIDDEN, "Metadata service instance token is invalid.")
+        return False
+
     def do_POST(self) -> None:  # noqa: N802
         if self.path != METADATA_PATH:
             self._error(HTTPStatus.NOT_FOUND, "Endpoint not found.")
+            return
+        if not self._require_instance_token():
             return
 
         raw_length = self.headers.get("Content-Length")
@@ -92,6 +118,15 @@ class MetadataRequestHandler(BaseHTTPRequestHandler):
         self._write_json(HTTPStatus.OK, {"ok": True, "result": result})
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.path == HEALTH_PATH:
+            if not self._require_instance_token():
+                return
+            payload: dict[str, Any] = {"ok": True}
+            project_id = self.server.project_id  # type: ignore[attr-defined]
+            if project_id is not None:
+                payload["project_id"] = project_id
+            self._write_json(HTTPStatus.OK, payload)
+            return
         self._error(HTTPStatus.METHOD_NOT_ALLOWED, "Only the metadata operation is available.")
 
     def do_PUT(self) -> None:  # noqa: N802
@@ -102,4 +137,3 @@ class MetadataRequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         logger.info("%s - %s", self.address_string(), format % args)
-

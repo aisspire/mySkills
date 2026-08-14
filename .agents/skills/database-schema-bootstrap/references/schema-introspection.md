@@ -24,12 +24,12 @@ schema 探查只能通过 `database-schema-bootstrap` MCP 工具完成。AI 侧 
 
 ## 失败处理
 
-如果 MCP adapter 或独立服务不可用、profile 缺失、Credential Manager 中没有凭据、驱动缺失或数据库权限不足：
+如果 MCP adapter 或当前项目服务不可用、profile 缺失、Git 项目身份无法确认、Credential Manager 中没有凭据、驱动缺失或数据库权限不足：
 
 1. 报告失败类别和需要人工修复的非密钥信息。
 2. 不要求用户粘贴密码。
 3. 不改用 `psql`、Python、旧 CLI 或任意 SQL。
-4. 修复后由人工重启独立服务和 MCP adapter，再调用白名单工具。
+4. 使用全局控制脚本修复 profile 或执行 `profile use` 后，再调用白名单工具；不得改用其他项目的服务。
 
 ## 事实边界
 

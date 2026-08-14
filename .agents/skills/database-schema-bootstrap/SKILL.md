@@ -9,9 +9,9 @@ description: Use when a task depends on real PostgreSQL schema metadata such as 
 
 当任务依赖真实 PostgreSQL 结构，而不是手写或猜测的表描述时，使用这个 skill。
 
-数据库连接由根目录 `mcp/database-schema-bootstrap` 的独立 metadata service 管理。AI 侧 stdio MCP adapter 只负责把三个白名单工具转发到 loopback RPC；profile、Windows Credential Manager、PostgreSQL driver 和固定查询都位于独立服务，不在 AI 侧入口中。
+数据库连接由全局安装的受信任 metadata service 管理。AI 侧 stdio MCP adapter 每次工具调用都会按当前 Git 项目查找匹配的 loopback 状态，再把请求转发到该项目的服务实例；profile、Windows Credential Manager、PostgreSQL driver 和固定查询都位于独立服务与控制脚本，不在 AI 侧入口中。
 
-独立服务应由人工、Windows Service 或其他受控进程提前启动。MCP adapter 不得启动、导入或读取独立服务的实现。
+全局 MCP 与 `SessionStart` hook 由人工安装到用户级 Codex 配置。hook 只处理当前 Git 项目：没有 project profile、项目身份无法确认、状态缺失或健康令牌不匹配时 adapter 必须失败关闭。MCP adapter 不得导入服务实现、读取 profile 或启动任意数据库连接。
 
 本 skill 只允许发现以下元数据：
 
@@ -45,18 +45,20 @@ description: Use when a task depends on real PostgreSQL schema metadata such as 
 2. AI 不得调用 `psql`、Python 数据库脚本、旧 CLI、shell 或任意 SQL 连接数据库。
 3. AI 不得读取、请求或转述密码；不得要求用户把密码粘贴到聊天中。
 4. AI 不得调用 `SELECT *`、抽样查询、行数统计、`EXPLAIN ANALYZE`、`INSERT`、`UPDATE`、`DELETE`、DDL 或用户提供的任意 SQL。
-5. MCP adapter 或独立服务不可用、profile 缺失或凭据失败时，停止数据库操作并报告阻塞；不得回退到直接连接数据库。
+5. MCP adapter 或本项目服务不可用、profile 缺失、项目身份无法确认或凭据失败时，停止数据库操作并报告阻塞；不得回退到直接连接数据库，也不得尝试其他项目的服务。
 6. 数据库账号只能拥有元数据探查所需的最小权限。独立服务内部只运行固定的 PostgreSQL catalog 查询，不接受 SQL 字符串参数。
 7. MCP adapter 只有 RPC endpoint，不包含 `psycopg`、profile loader、Credential Manager API 或数据库连接代码。
 
 ## 快速参考
 
-- project profile：`.agents/database-schema-bootstrap/profiles/default.json`，由独立服务读取
+- project profile：`.agents/database-schema-bootstrap/profiles/<name>.json`，由受信任服务读取
+- 全局安装、登录、切换、并发与卸载：[tools/database-schema-bootstrap](../../../tools/database-schema-bootstrap/README.md)
 - 独立服务：[mcp/database-schema-bootstrap](../../../mcp/database-schema-bootstrap/README.md)
-- MCP 启动与通用 stdio 配置：[references/mcp-stdio.md](references/mcp-stdio.md)
+- MCP 路由说明：[references/mcp-stdio.md](references/mcp-stdio.md)
 - profile 字段：[references/config-template.md](references/config-template.md)
 - profile 示例：[references/profile.example.json](references/profile.example.json)
-- 人工初始化 Windows Credential Manager：`mcp/database-schema-bootstrap/set_db_secret.ps1`
+- 双项目 cwd 人工发布门禁：[tests/database-schema-bootstrap-cwd-smoke.ps1](../../../tests/database-schema-bootstrap-cwd-smoke.ps1)
+- 旧版凭据脚本：[mcp/database-schema-bootstrap/set_db_secret.ps1](../../../mcp/database-schema-bootstrap/set_db_secret.ps1) 仅作兼容，不是新流程入口
 - AI 侧 MCP 依赖：[requirements-mcp.txt](requirements-mcp.txt)
 
 MCP 工具输入输出：
@@ -91,19 +93,25 @@ profile 禁止包含：
 - DSN 或带密码的连接字符串
 - MySQL、SQLite 或 `sqlite_path` 配置
 
-密码由人工在独立服务运行账号的上下文中初始化，AI 不应代为输入或读取密码：
+密码由人工通过控制脚本的隐藏输入在当前 Windows 用户上下文中初始化，AI 不应代为输入或读取密码。人工也可以不带参数运行 `profile add` 进入中文交互向导，一步完成添加、登录和可选的活动切换：
 
 ```powershell
-E:\code\skills\mcp\database-schema-bootstrap\set_db_secret.ps1 -Target "database-schema-bootstrap/example-project/postgres/db.example.test/app_database/readonly_metadata_user"
+$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
+& $dbs profile login -ProjectPath . -Name default
 ```
 
 ## 操作流程
 
-1. 由人工或受控服务管理器启动 `mcp/database-schema-bootstrap/server.py`。
-2. 确认 MCP 客户端已连接 AI 侧 adapter，且只显示三个白名单工具。
-3. 根据任务调用 `list_databases`、`list_tables` 或 `describe_table`。
-4. 只使用工具返回的结构事实编写后续建议，不把结构探查扩展为数据查询。
-5. 如果 adapter 或独立服务不可用，报告需要人工配置的非密钥信息；不执行任何直接数据库命令。
+1. 人工先安装全局运行时，并在当前 Git 项目添加、登录和选择 profile。
+2. `SessionStart` hook 从事件 `cwd` 确认当前项目后启动或复用独立服务；`active-profile.json` 优先，没有它时仅使用 `default.json`。同项目启动和 `profile use` 使用排他锁，已验证健康的实例会复用；无法验证的旧 PID 不会被自动终止。
+3. 确认 MCP 客户端只显示三个白名单工具。
+4. 根据任务调用 `list_databases`、`list_tables` 或 `describe_table`。
+5. 只使用工具返回的结构事实编写后续建议，不把结构探查扩展为数据查询。
+6. 如果 adapter 或本项目服务不可用，报告需要人工配置的非密钥信息；不执行任何直接数据库命令。
+
+卸载时，选择 `config` 或 `runtime` 会在确认前自动扩展为 `config,runtime,state`，以避免留下核心半状态；单独选择 `state` 只停止并清理项目服务状态，不删除 runtime 或 config。`-Repair` 只处理 state 已丢失、runtime 已不存在且仍有边界完整受管配置区块的旧半状态；state 缺失但 runtime 仍存在时会停止并报告。`session-reap` 只处理当前 Git 项目记录的 orphan service process，只有 PID、命令行哈希、进程创建时间、服务脚本、state path 和 project ID 全部匹配时才会终止进程，无法验证的记录会保留并使破坏性核心卸载失败。
+
+项目身份使用绝对路径、词法 `normpath`、Windows 大小写归一化和末尾分隔符裁剪；不使用 `Path.resolve()` 或 `realpath()` 跟随 junction/symlink，因此控制脚本、adapter 和服务端保留相同的路径拼写。`active-profile`（不区分大小写）保留给 `active-profile.json`，profile 写入前会拒绝该名称。
 
 ## 输出规范
 
@@ -125,8 +133,12 @@ E:\code\skills\mcp\database-schema-bootstrap\set_db_secret.ps1 -Target "database
 
 ## 验证状态
 
-当前实现提供 PostgreSQL-only 独立 metadata service、AI 侧 RPC-only MCP adapter、Credential Manager 隔离、固定元数据查询和工具白名单测试。
+当前实现提供 PostgreSQL-only 独立 metadata service、按 Git 项目动态路由的 AI 侧 adapter、实例令牌健康检查、Credential Manager 隔离、固定元数据查询和工具白名单测试。adapter 使用 25 秒端到端单调时钟预算；受管 MCP 工具和 hook 各保留 30 秒外层时限。
 
 尚未用用户实际数据库凭据完成运行时探查验证；因此不要宣称真实 PostgreSQL 连接已经验证成功。真实验证只能通过 MCP 工具完成，不得绕过 MCP 直接执行 SQL。
 
-目录分隔和 RPC 白名单是行为边界；如果 AI 与服务使用同一 Windows 用户且能读取服务目录、profile 或凭据，不能把它们宣称为绝对安全隔离。生产部署仍应使用独立服务账号、ACL 和禁止 AI 直连 PostgreSQL 的网络策略。
+发布前应运行上述 FakeService 夹具，并从它生成的两个项目分别执行真实 `codex exec -C <project>` 调用，确认各自只返回不同的标记表名；这验证真实客户端 cwd 路由，但不连接 PostgreSQL。
+
+标准用户发布验收应使用非管理员普通用户 token 执行 `profile login`，关闭并重新打开该用户会话后，用同一 credential target 通过实际 metadata service 读取元数据；记录成功结果或完整 Win32 错误码。当前实现保留 `CredWrite` 的 `Persist=2`，除非出现可重复且确认的标准用户失败，不将其降级为 `Persist=1`。
+
+目录分隔、项目状态与 RPC 白名单是行为边界；如果 AI 与服务使用同一 Windows 用户且能读取服务目录、profile 或凭据，不能把它们宣称为绝对安全隔离。生产部署仍应使用独立服务账号、ACL 和禁止 AI 直连 PostgreSQL 的网络策略。

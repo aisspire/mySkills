@@ -1,3 +1,6 @@
+# Legacy compatibility helper only. New installations must use:
+#   db-schema-bootstrap.ps1 profile login -ProjectPath . -Name <profile>
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
