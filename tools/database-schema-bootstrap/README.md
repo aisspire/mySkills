@@ -224,7 +224,18 @@ WSL/Linux：
 "$dbs" service stop
 ```
 
-`SessionStart` 使用 `service ensure --hook`。无 Git 根、无 access 文件或无 enabled ID 时直接成功跳过，不启动 daemon。多个并发 hook 使用 `state/service.lock` 收敛为一个进程。
+`SessionStart` 使用 `service ensure --hook`。无 Git 根、无 access 文件或无 enabled ID 时直接成功跳过，不启动 daemon。多个并发 hook 使用 `state/service.lock` 收敛为一个进程。hook 成功时不写 stdout，避免控制状态 JSON 被 Codex 误判为 SessionStart 响应；人工运行 `service ensure/start` 仍输出状态 JSON。
+
+如果 Codex 报告 `hook returned invalid session start JSON output`，说明已安装 runtime 仍在使用会向 stdout 打印状态 JSON 的旧控制程序。重新运行对应平台安装命令完成原地升级，然后新开 Codex 会话：
+
+```powershell
+.\tools\database-schema-bootstrap\install.ps1 `
+  -PythonPath 'C:\Path\to\python.exe'
+```
+
+```bash
+./tools/database-schema-bootstrap/install.sh --python /path/to/python3
+```
 
 服务以随机端口绑定 `127.0.0.1`，stdout/stderr 只写 runtime 日志。停止只调用 token 保护的 `/v2/control/shutdown`；状态损坏、health 身份不一致或 PID 无法验证时不会强杀，而是记录 orphan，并阻止破坏性升级/卸载。
 

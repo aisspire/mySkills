@@ -8,7 +8,7 @@
 - 正式入口状态：`SKILL.md` 已发布 v2
 - 下一动作：保持 `static-compliant`，继续完成外部平台与真实 PostgreSQL 门禁
 - 格式校验：候选与正式入口均已通过官方 `quick_validate.py`
-- 自动验证：依赖完整 runtime venv 中 42 项测试通过，零跳过
+- 自动验证：依赖完整 runtime venv 中 43 项测试通过，零跳过；包含 SessionStart hook stdout 契约回归
 
 ## 范围
 

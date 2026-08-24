@@ -1172,9 +1172,14 @@ def main(argv: list[str] | None = None) -> int:
                 project_root = (
                     _hook_project_root(args.project_root) if args.hook else args.project_root
                 )
-                _print_json(
-                    control.service_ensure(project_root=project_root, hook=args.hook)
-                )
+                result = control.service_ensure(project_root=project_root, hook=args.hook)
+                # SessionStart treats JSON-looking stdout as a hook response and
+                # validates its event-specific schema. The service status object
+                # is a control-plane result, not a hook response, so successful
+                # hook invocations must stay silent. Interactive control calls
+                # keep their existing JSON output.
+                if not args.hook:
+                    _print_json(result)
             elif args.action == "status":
                 _print_json(control.service_status())
             elif args.action == "stop":

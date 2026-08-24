@@ -29,6 +29,7 @@ try:  # The repository's top-level `mcp/` is a namespace when SDK is absent.
     from mcp import Client  # type: ignore[attr-defined]  # noqa: E402
 except ImportError:
     Client = None  # type: ignore[assignment,misc]
+import control as control_module  # noqa: E402
 from control import (  # noqa: E402
     EXCLUDE_END,
     EXCLUDE_START,
@@ -1065,6 +1066,50 @@ class ControlTests(unittest.TestCase):
         fake = FakeControl(self.runtime)
         result = fake.service_ensure(project_root=str(self.project), hook=True)
         self.assertEqual(result["status"], "skipped")
+
+    def test_session_start_hook_is_silent_but_manual_ensure_prints_json(self):
+        calls: list[tuple[str | None, bool]] = []
+
+        class FakeControl:
+            def __init__(inner, runtime_root):
+                inner.runtime_root = runtime_root
+
+            def service_ensure(inner, *, project_root=None, hook=False):
+                calls.append((project_root, hook))
+                return {"status": "running", "version": 2}
+
+        with mock.patch.object(control_module, "Control", FakeControl):
+            hook_stdout = io.StringIO()
+            hook_stdin = io.StringIO(json.dumps({"cwd": str(self.project)}))
+            with contextlib.redirect_stdout(hook_stdout), mock.patch.object(
+                control_module.sys, "stdin", hook_stdin
+            ):
+                hook_result = control_module.main(
+                    [
+                        "--runtime-root",
+                        str(self.runtime),
+                        "service",
+                        "ensure",
+                        "--hook",
+                    ]
+                )
+            self.assertEqual(hook_result, 0)
+            self.assertEqual(hook_stdout.getvalue(), "")
+
+            manual_stdout = io.StringIO()
+            with contextlib.redirect_stdout(manual_stdout):
+                manual_result = control_module.main(
+                    [
+                        "--runtime-root",
+                        str(self.runtime),
+                        "service",
+                        "ensure",
+                    ]
+                )
+            self.assertEqual(manual_result, 0)
+            self.assertEqual(json.loads(manual_stdout.getvalue())["status"], "running")
+
+        self.assertEqual(calls, [(str(self.project), True), (None, False)])
 
 
 class InstallerAndUninstallerTests(unittest.TestCase):
