@@ -1,5 +1,7 @@
 # PostgreSQL Schema 探查参考
 
+> v1 历史资料：仅用于追溯旧 profile/Credential Manager 架构，不属于正式 v2 skill 路由。
+
 schema 探查只能通过 `database-schema-bootstrap` MCP 工具完成。AI 侧 adapter 只调用独立 metadata service；AI 不应直接执行下面类型的数据库命令，也不应调用旧版 CLI。
 
 ## 工具契约

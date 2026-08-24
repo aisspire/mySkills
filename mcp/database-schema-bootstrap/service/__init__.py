@@ -1,6 +1,6 @@
-"""Privileged PostgreSQL metadata service internals.
+"""Trusted PostgreSQL-only metadata gateway internals.
 
-This package must be deployed and started independently from the AI-facing
-MCP adapter. It owns the database driver, profile, and credential access.
+This package is deployed separately from the AI-facing stdio adapter. It owns
+strict central configuration loading, request authorization, the password file,
+the PostgreSQL driver, and the three fixed catalog operations.
 """
-

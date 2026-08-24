@@ -45,46 +45,46 @@
 
 用于在写 SQL、迁移、字段排查或 CRUD 前读取真实 PostgreSQL schema。AI 只可调用 `list_databases`、`list_tables`、`describe_table`，不得直连数据库、读取密码或执行任意 SQL。
 
-全局 MCP adapter 与受控服务运行时安装到 `%USERPROFILE%\.codex\database-schema-bootstrap`，源码仓库只作为安装与升级来源。每个 Git 项目独立维护 profile、状态文件、动态 loopback 端口和实例令牌；profile 缺失或项目身份无法确认时 adapter 会失败关闭，绝不复用其他项目的数据库。
+v2 在每个运行环境中安装一个独立常驻 gateway：Windows 与 WSL 分别拥有自己的 runtime、venv、状态和配置，不共享进程或密码。项目只保存本地 `access.json`，中央配置按 `project_id + connection_id` 授权；项目 `enabled` 与 `active` 只控制本地可用性和默认选择。
 
-安装命令：
+Windows 与 WSL/Linux 安装命令：
 
 ```powershell
 .\tools\database-schema-bootstrap\install.ps1 -PythonPath 'C:\Path\to\python.exe'
 ```
 
-也可仅设置 `CODEX_PYTHON` 后省略 `-PythonPath`。安装器只替换自己的 `~/.codex/config.toml` 受管区块，并在其中配置 MCP 与 `SessionStart` hook，不会修改 `hooks.json` 或其他 Codex 配置。
+```bash
+./tools/database-schema-bootstrap/install.sh --python /path/to/python3
+```
 
-**简易使用方法（三步上手）**：
+安装器要求现有 Python 3.11+，只在运行时内创建 `.venv`，不调用 `sudo`、`apt` 或全局 pip。它只维护 `~/.codex/config.toml` 中自己的 MCP/`SessionStart` 区块，不注册 `SessionEnd`，运行态始终引用专用 venv。
+
+v2 不迁移 v1 profile 或 Credential Manager 凭据。检测到 v1 时安装会停止，必须先人工运行 `legacy-uninstall-v1.ps1` 完整卸载，再重新录入连接和项目授权。
+
+快速开始：
 
 ```powershell
-# ① 安装全局运行时（每台机器一次；重复执行即为升级）
 .\tools\database-schema-bootstrap\install.ps1 -PythonPath 'C:\Path\to\python.exe'
 
-# ② 在目标 Git 项目内运行中文交互向导，一次性完成：
-#    添加 profile → 隐藏输入密码 → 可选设为活动并启动服务
 $dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
-& $dbs profile add -ProjectPath .
+& $dbs connection add erp-ro --host db.example.test --database erp --user metadata_reader
+& $dbs project init --project .
+& $dbs project grant erp-ro --project .
+& $dbs project enable erp-ro --project .
+& $dbs project use erp-ro --project .
 
-# ③ 新开 Codex 会话，AI 即可调用三个白名单 MCP 工具读取 schema
-#    list_databases / list_tables / describe_table
+# 新开 Codex 会话后使用 list_databases / list_tables / describe_table
 ```
 
-之后每次会话由 `SessionStart` hook 自动启动/复用该项目服务，无需手动操作。删除配置：`& $dbs profile remove -ProjectPath .`（交互选择）；卸载：`.\tools\database-schema-bootstrap\uninstall.ps1 -All -ConfirmAll`。
+WSL/Linux 使用同一控制核心：
 
-项目 profile 工作流（参数化方式，等价于向导）：
-
-```powershell
-$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
-& $dbs profile add -ProjectPath . -Name default -DatabaseHost db.example.test -Database app_database -DatabaseUser readonly_metadata_user
-& $dbs profile login -ProjectPath . -Name default
-& $dbs profile use -ProjectPath . -Name default
-& $dbs status -ProjectPath .
+```bash
+$CODEX_HOME/database-schema-bootstrap/control/db-schema-bootstrap.sh connection list
 ```
 
-密码仅通过隐藏输入存入当前 Windows 用户的 Credential Manager，绝不会进入 profile、命令参数、MCP 配置、日志或工具参数。`active-profile.json` 优先；没有它时只自动使用 `default.json`。详细安装、升级、并发与卸载说明见 [全局运行时文档](./tools/database-schema-bootstrap/README.md)；skill 侧约束见 [database-schema-bootstrap](./.agents/skills/database-schema-bootstrap/SKILL.md)。
+密码通过隐藏输入写入 runtime 的 `config/secrets.json`。这是面向同一用户环境的防误用软边界，不抵御同用户恶意进程；密码不会进入命令参数、环境变量、日志、状态或 MCP 请求。`enabled=false` 也不是保密机制。
 
-`active-profile`（不区分大小写）是保留名称，不能作为 profile 名写入文件。卸载选择 `config` 或 `runtime` 会自动扩展为 `config,runtime,state`；单独 `state` 只清理服务状态。旧半状态使用 `uninstall.ps1 -Repair -ConfirmAll`，孤儿服务记录使用 `& $dbs session-reap -ProjectPath .`，均不会重建凭据或强杀无法验证身份的进程。
+普通卸载保留连接、秘密和项目 access；`--all`/`-All -ConfirmAll` 才删除这些不可恢复数据。详细说明见 [安装与控制指南](./tools/database-schema-bootstrap/README.md)、[服务端说明](./mcp/database-schema-bootstrap/README.md) 和 [v2 架构](./docs/architecture/database-schema-bootstrap-v2.md)。v2 skill 已正式发布到 [database-schema-bootstrap/SKILL.md](./.agents/skills/database-schema-bootstrap/SKILL.md)，当前 writing 等级为 `static-compliant`。
 
 
 

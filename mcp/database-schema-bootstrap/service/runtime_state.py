@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+from .config import atomic_write_json
 
 
 def write_ready_state(
@@ -13,51 +14,44 @@ def write_ready_state(
     *,
     endpoint: str,
     port: int,
-    project_id: str,
-    project_root: str,
+    installation_id: str,
     instance_token: str,
+    process_identity: str,
 ) -> None:
-    """Write a complete service identity atomically after the socket is bound."""
+    """Write the global daemon identity only after the loopback socket is bound."""
 
-    ready_path = pathlib.Path(path)
-    ready_path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
-        "version": 1,
-        "project_id": project_id,
-        "project_root": project_root,
+        "version": 2,
+        "protocol_version": 2,
+        "installation_id": installation_id,
         "endpoint": endpoint,
         "port": port,
         "pid": os.getpid(),
         "instance_token": instance_token,
+        "process_identity": process_identity,
         "started_at": datetime.now(UTC).isoformat(),
     }
-    temporary_path = ready_path.with_name(
-        f".{ready_path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
-    )
-    try:
-        temporary_path.write_text(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            encoding="utf-8",
-        )
-        os.replace(temporary_path, ready_path)
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
+    atomic_write_json(path, payload, secret=True)
 
 
 def remove_ready_state_if_owned(
     path: str | pathlib.Path,
     *,
     instance_token: str,
+    process_identity: str,
 ) -> None:
-    """Remove only the state record owned by the stopping service instance."""
+    """A retiring daemon cannot remove a newer daemon's state record."""
 
     ready_path = pathlib.Path(path)
     try:
         state = json.loads(ready_path.read_text(encoding="utf-8"))
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return
-    if not isinstance(state, dict) or state.get("instance_token") != instance_token:
+    if (
+        not isinstance(state, dict)
+        or state.get("instance_token") != instance_token
+        or state.get("process_identity") != process_identity
+    ):
         return
     try:
         ready_path.unlink()

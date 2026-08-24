@@ -1,5 +1,7 @@
 # 全局 MCP 与项目路由
 
+> v1 历史资料：仅用于追溯旧 profile/Credential Manager 架构，不属于正式 v2 skill 路由。
+
 `database-schema-bootstrap` 由三个隔离职责组成：
 
 1. `%USERPROFILE%\.codex\database-schema-bootstrap\service`：受信任的 PostgreSQL metadata service，读取 project profile、Credential Manager 和数据库驱动。

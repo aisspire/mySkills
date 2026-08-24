@@ -1,5 +1,7 @@
 # PostgreSQL MCP Profile 说明
 
+> v1 历史资料：仅用于追溯旧 profile/Credential Manager 架构，不属于正式 v2 skill 路由。
+
 项目 profile 放在目标项目根目录：
 
 ```text

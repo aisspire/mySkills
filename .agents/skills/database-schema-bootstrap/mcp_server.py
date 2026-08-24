@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import math
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
-from mcp.server import MCPServer
-
-from project_routing import ProjectMetadataRouter
-from rpc_client import MetadataServiceClient, MetadataServiceError
+from project_routing import INSTALL_STATE_FIELDS, ProjectMetadataRouter
+from rpc_client import MetadataServiceError
 
 
 logger = logging.getLogger(__name__)
@@ -40,40 +39,47 @@ def _safe_call(operation: str, callback: Callable[[], T]) -> T:
         raise RuntimeError("Database metadata operation failed.") from None
 
 
-def create_server(client: MetadataServiceClient) -> MCPServer:
-    """Expose only the fixed metadata tools to the MCP client."""
+def create_server(client: Any) -> Any:
+    """Expose exactly three metadata tools and optional connection selection."""
+
+    from mcp.server import MCPServer
 
     server = MCPServer("database-schema-bootstrap")
 
     @server.tool()
-    def list_databases() -> list[dict[str, str]]:
-        """List PostgreSQL database names only; never read application rows."""
+    def list_databases(connection_id: str | None = None) -> list[dict[str, str]]:
+        """List database names for one enabled project connection."""
 
-        return _safe_call("list_databases", client.list_databases)
-
-    @server.tool()
-    def list_tables() -> list[dict[str, str]]:
-        """List base tables in the configured PostgreSQL schema only."""
-
-        return _safe_call("list_tables", client.list_tables)
+        return _safe_call(
+            "list_databases", lambda: client.list_databases(connection_id)
+        )
 
     @server.tool()
-    def describe_table(table: str) -> dict[str, object]:
-        """Describe one configured-schema table without reading business rows."""
+    def list_tables(connection_id: str | None = None) -> list[dict[str, str]]:
+        """List base tables for one enabled project connection."""
 
-        return _safe_call("describe_table", lambda: client.describe_table(table))
+        return _safe_call("list_tables", lambda: client.list_tables(connection_id))
+
+    @server.tool()
+    def describe_table(
+        table: str, connection_id: str | None = None
+    ) -> dict[str, object]:
+        """Describe one table without reading application rows."""
+
+        return _safe_call(
+            "describe_table", lambda: client.describe_table(table, connection_id)
+        )
 
     return server
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="AI-facing MCP adapter for the independent metadata service."
+        description="AI-facing stdio adapter for metadata gateway v2."
     )
-    parser.add_argument(
-        "--endpoint",
-        help=argparse.SUPPRESS,
-    )
+    parser.add_argument("--self-check", action="store_true")
+    parser.add_argument("--runtime-root", help=argparse.SUPPRESS)
+    parser.add_argument("--endpoint", help=argparse.SUPPRESS)
     parser.add_argument(
         "--timeout",
         type=_finite_positive_timeout,
@@ -83,21 +89,47 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def build_server(timeout: float = 25.0) -> MCPServer:
-    state_root = Path(__file__).resolve().parent.parent / "state" / "projects"
-    return create_server(ProjectMetadataRouter(state_root, timeout=timeout))
+def _assert_runtime_complete(runtime_root: Path) -> None:
+    try:
+        data = json.loads(
+            (runtime_root / "install-state.json").read_text(encoding="utf-8")
+        )
+    except (FileNotFoundError, OSError, json.JSONDecodeError) as exc:
+        raise MetadataServiceError("Database metadata runtime is not installed.") from exc
+    if (
+        not isinstance(data, dict)
+        or set(data) != INSTALL_STATE_FIELDS
+        or data.get("version") != 2
+        or data.get("dependency_installation") != "completed"
+    ):
+        raise MetadataServiceError("Database metadata runtime is incomplete.")
+
+
+def build_server(timeout: float = 25.0, *, runtime_root: Path | None = None) -> Any:
+    root = runtime_root or Path(__file__).resolve().parent.parent
+    _assert_runtime_complete(root)
+    return create_server(ProjectMetadataRouter(root, timeout=timeout))
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.WARNING)
     args = parse_args(argv)
     try:
         if args.endpoint is not None:
-            raise MetadataServiceError(
-                "Static metadata service endpoints are not allowed."
-            )
-        server = build_server(args.timeout)
-    except MetadataServiceError as exc:
-        logger.error("MCP adapter startup failed: %s", exc)
+            raise MetadataServiceError("Static metadata service endpoints are not allowed.")
+        runtime_root = (
+            Path(args.runtime_root).absolute()
+            if args.runtime_root
+            else Path(__file__).resolve().parent.parent
+        )
+        if args.self_check:
+            _assert_runtime_complete(runtime_root)
+            from mcp.server import MCPServer  # noqa: F401
+
+            return 0
+        server = build_server(args.timeout, runtime_root=runtime_root)
+    except (MetadataServiceError, ImportError):
+        logger.error("MCP adapter startup failed.")
         return 1
     server.run()
     return 0

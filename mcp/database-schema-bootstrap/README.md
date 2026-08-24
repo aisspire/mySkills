@@ -1,61 +1,58 @@
-# database-schema-bootstrap 受信任元数据服务
+# database-schema-bootstrap v2 元数据网关
 
-本目录是全局 PostgreSQL MCP 运行时的服务端源码。它读取项目 profile、从 Windows Credential Manager 读取密码、加载 `psycopg`，并且只执行固定的 PostgreSQL catalog 元数据查询。
+本目录是受信任的 PostgreSQL-only 服务端源码。安装后，每个 Windows 或 WSL/Linux 环境各自运行一个常驻本机 gateway；AI 侧 stdio adapter 只负责发现当前 Git 根、读取项目本地 `access.json`，并把固定请求转发到该环境的 loopback gateway。
 
-AI 侧 adapter 不导入本目录，不读取 profile、Credential Manager 或数据库驱动。安装后服务源码会复制到 `%USERPROFILE%\.codex\database-schema-bootstrap\service`；不要把源码仓库路径配置为 Codex MCP 的运行路径。
+## 运行时职责
 
-## 运行方式
+gateway 每次请求重新加载并严格校验：
 
-请通过 [`tools/database-schema-bootstrap`](../../tools/database-schema-bootstrap/README.md) 的安装器和控制脚本运行。安装器在 `~/.codex/config.toml` 注册一个全局 stdio MCP adapter，并配置 `SessionStart` hook；hook 只会为当前 Git 项目路由并启动服务。
+- `config/connections.json`：非秘密 PostgreSQL 连接字段；
+- `config/secrets.json`：唯一允许保存明文密码的文件；
+- `config/projects.json`：项目根、access 路径和中央 grant；
+- `<git-root>/.agents/database-schema-bootstrap/access.json`：项目本地 enabled/active 状态。
 
-新的凭据入口统一为：
+访问必须同时满足中央 grant、项目 `enabled=true`、项目 ID、绑定 Git 根和固定 access 路径。未知、禁用、未授权、已删除或缺少 secret 的 connection ID 对外统一为“当前项目连接不可用”。配置未知字段、损坏 JSON 或不支持版本会失败关闭，不保留“最后一次正确配置”。
 
-```powershell
-$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
-& $dbs profile login -ProjectPath . -Name default
-```
+## RPC
 
-仓库中的 `set_db_secret.ps1` 仅保留给旧部署兼容使用，不再作为新安装或登录流程入口；它不会改变控制脚本保留的 `CredWrite Persist=2` 语义。
+服务只绑定 `127.0.0.1` 的随机端口：
 
-项目 profile 保持在：
+- `GET /v2/health`
+- `POST /v2/metadata`
+- `POST /v2/control/shutdown`
 
-```text
-<项目根>/.agents/database-schema-bootstrap/profiles/<name>.json
-```
+所有端点都要求运行时随机 token。health 只返回协议版本、installation ID、PID 和随机 process identity，不访问 PostgreSQL。shutdown 只供控制程序使用，不是 MCP 工具。
 
-每个项目会有独立的动态 loopback 端口、ready-state 文件和实例令牌。服务固定绑定 `127.0.0.1`，`/v1/health` 不访问数据库且需要实例令牌；`POST /v1/metadata` 同样需要令牌。服务不会接收密码、DSN、profile 路径或任意 SQL 作为 MCP 工具参数。
-
-ready-state 使用 token 所有权删除：停止中的旧服务只会删除仍持有相同 `instance_token` 的状态，不会删掉较新实例的记录。控制脚本仅在旧进程命令行同时匹配已安装服务脚本、状态路径、项目 ID 与当前实例令牌时才会终止它；损坏状态、缺失 PID 或无法验证的进程只会触发状态恢复，未知 PID 不会被自动终止。ownership 校验失败的存活 PID 会记录到 `install-state.json.orphan_service_processes`，其中包含命令行 SHA-256 和进程创建时间；`session-reap` 只有完整身份匹配才会回收，无法验证的记录会保留。
-
-受控服务管理器启动的等价形态如下（由控制脚本生成，不建议手动复制令牌）：
-
-```text
-<python> -B <installed-runtime>\service\server.py \
-  --config <项目 profile> --port 0 \
-  --instance-token <随机令牌> \
-  --ready-state <installed-runtime>\state\projects\<项目 SHA-256>.json \
-  --project-id <项目 SHA-256> --project-root <规范化项目根>
-```
-
-## RPC 契约
-
-服务只接受下列固定操作：
+metadata 请求只接受三种精确 schema：
 
 ```json
-{"operation":"list_databases"}
-{"operation":"list_tables"}
-{"operation":"describe_table","table":"users"}
+{
+  "version": 2,
+  "project_id": "9e526cf7-7781-4f41-a252-3c9f44e90c17",
+  "project_root": "/workspace/example",
+  "connection_id": "erp-prod-ro",
+  "operation": "describe_table",
+  "table": "users"
+}
 ```
 
-不接受 `sql`、`query`、`dsn`、`password` 或额外字段。响应只包含 schema 元数据，不返回业务行、样例数据、行数或执行计划。
+`list_databases` 与 `list_tables` 不接受 `table`；`describe_table` 必须包含一个未限定 PostgreSQL 标识符。任何额外字段、SQL、DSN、路径或密码都会被拒绝。
 
-## 安全边界
+## PostgreSQL 边界
 
-1. adapter 仅提供 `list_databases`、`list_tables`、`describe_table` 三项工具。
-2. adapter 无法确认当前 Git 项目、找不到匹配状态或健康令牌不匹配时必须失败关闭；不得连接其他项目或退回直连数据库。
-3. profile 禁止明文密码和 DSN；密码只由 `profile login` 通过隐藏输入写入 Credential Manager。
-4. 同一 Windows 用户下可读目录不是绝对安全隔离。生产部署仍需独立服务账号、ACL、最小权限 PostgreSQL 账号，以及禁止 AI 账号直连 PostgreSQL 的网络与认证策略。
+gateway 不建立持久连接池。每次请求将选中的非秘密配置与本次 secret 组合，创建一个连接并设置：
 
-项目身份在控制脚本、adapter 和服务端之间统一为绝对路径的词法规范化结果：执行 `normpath`、Windows 大小写归一化和末尾分隔符裁剪，但保留 junction/symlink 拼写，不跟随 `resolve()`/`realpath()`。
+- 连接超时 10 秒；
+- `statement_timeout=10000`；
+- `lock_timeout=3000`；
+- `SET TRANSACTION READ ONLY`。
 
-卸载和旧半状态修复由 `tools/database-schema-bootstrap/uninstall.ps1` 负责：选择 `config` 或 `runtime` 会自动扩展为 `config,runtime,state`；`state` 单独选择只清理服务状态；`-Repair` 不重建凭据，`session-reap` 不会强杀无法完全验证身份的 orphan 进程。
+固定查询只读取 `pg_catalog` 和 `information_schema`，返回数据库名、表名、字段、约束和索引；不读取业务行、样例值、行数或执行计划。
+
+## 安全等级
+
+WSL/Linux 安装器将 `config/` 设为 `0700`，`secrets.json` 设为 `0600`；服务发现组/其他用户权限时拒绝启动。Windows v2 继承当前用户 Profile ACL，不自动改写 DACL。
+
+这是防误用软边界，不抵御同一操作系统用户下的恶意进程。需要强隔离时，应使用独立服务账号或远程凭据服务，并限制 AI 运行账号直接访问 PostgreSQL。
+
+安装、控制、升级和卸载见 [tools/database-schema-bootstrap](../../tools/database-schema-bootstrap/README.md)。v1 的 Credential Manager 辅助脚本保留为 [`legacy-set-db-secret-v1.ps1`](legacy-set-db-secret-v1.ps1)，仅用于历史清理，不属于 v2 运行链路。

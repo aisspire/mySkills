@@ -6,11 +6,7 @@ class GatewayError(RuntimeError):
 
 
 class ConfigError(GatewayError):
-    """The project profile is missing, invalid, or unsupported."""
-
-
-class CredentialError(GatewayError):
-    """The operating-system credential could not be read."""
+    """A strict v2 runtime or project configuration is unavailable."""
 
 
 class PolicyError(GatewayError):
@@ -20,3 +16,6 @@ class PolicyError(GatewayError):
 class MetadataError(GatewayError):
     """PostgreSQL metadata access failed without exposing driver details."""
 
+
+class ConnectionUnavailableError(GatewayError):
+    """The requested connection is not usable by the current project."""

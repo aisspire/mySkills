@@ -4,8 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
 from .config import PostgresProfile
-from .credentials import read_profile_password
-from .errors import CredentialError, GatewayError, MetadataError
+from .errors import GatewayError, MetadataError
 from .policy import validate_table_name
 
 
@@ -13,17 +12,19 @@ ConnectFactory = Callable[..., Any]
 
 
 class PostgresMetadataService:
-    """Read fixed PostgreSQL catalog queries without exposing a SQL interface."""
+    """Run fixed PostgreSQL catalog queries with one request-scoped password."""
 
     def __init__(
         self,
         profile: PostgresProfile,
+        password: str,
         *,
-        credential_reader=read_profile_password,
         connect_factory: ConnectFactory | None = None,
     ) -> None:
+        if not isinstance(password, str) or not password:
+            raise MetadataError("PostgreSQL credential is unavailable.")
         self.profile = profile
-        self._credential_reader = credential_reader
+        self._password = password
         self._connect_factory = connect_factory or self._load_connect_factory()
 
     @staticmethod
@@ -32,21 +33,18 @@ class PostgresMetadataService:
             import psycopg  # type: ignore
         except ImportError as exc:
             raise MetadataError(
-                "PostgreSQL driver is unavailable. Install the service requirements."
+                "PostgreSQL driver is unavailable. Reinstall the runtime dependencies."
             ) from exc
         return psycopg.connect
 
     def _connect(self, database: str):
         try:
-            password = self._credential_reader(self.profile)
-            if not password:
-                raise CredentialError("Database credential is empty.")
             return self._connect_factory(
                 host=self.profile.host,
                 port=self.profile.port,
                 dbname=database,
                 user=self.profile.user,
-                password=password,
+                password=self._password,
                 connect_timeout=10,
                 options="-c statement_timeout=10000 -c lock_timeout=3000",
             )
@@ -112,14 +110,9 @@ class PostgresMetadataService:
             with self._read_only_cursor(self.profile.database) as cursor:
                 cursor.execute(
                     """
-                    SELECT
-                      column_name,
-                      data_type,
-                      is_nullable,
-                      column_default
+                    SELECT column_name, data_type, is_nullable, column_default
                     FROM information_schema.columns
-                    WHERE table_schema = %s
-                      AND table_name = %s
+                    WHERE table_schema = %s AND table_name = %s
                     ORDER BY ordinal_position
                     """,
                     (self.profile.schema, table),
@@ -133,21 +126,16 @@ class PostgresMetadataService:
                     }
                     for row in cursor.fetchall()
                 ]
-
                 cursor.execute(
                     """
-                    SELECT
-                      tc.constraint_name,
-                      tc.constraint_type,
-                      kcu.column_name
+                    SELECT tc.constraint_name, tc.constraint_type, kcu.column_name
                     FROM information_schema.table_constraints tc
                     LEFT JOIN information_schema.key_column_usage kcu
                       ON tc.constraint_name = kcu.constraint_name
                      AND tc.constraint_schema = kcu.constraint_schema
                      AND tc.table_schema = kcu.table_schema
                      AND tc.table_name = kcu.table_name
-                    WHERE tc.table_schema = %s
-                      AND tc.table_name = %s
+                    WHERE tc.table_schema = %s AND tc.table_name = %s
                     ORDER BY tc.constraint_name, kcu.ordinal_position
                     """,
                     (self.profile.schema, table),
@@ -156,17 +144,15 @@ class PostgresMetadataService:
                     {"name": row[0], "type": row[1], "column": row[2]}
                     for row in cursor.fetchall()
                 ]
-
                 cursor.execute(
                     """
-                    SELECT
-                      index_relation.relname,
-                      index_definition.indisunique,
-                      index_definition.indisprimary,
-                      index_definition.indisvalid,
-                      access_method.amname,
-                      pg_get_indexdef(index_definition.indexrelid),
-                      pg_get_expr(index_definition.indpred, index_definition.indrelid)
+                    SELECT index_relation.relname,
+                           index_definition.indisunique,
+                           index_definition.indisprimary,
+                           index_definition.indisvalid,
+                           access_method.amname,
+                           pg_get_indexdef(index_definition.indexrelid),
+                           pg_get_expr(index_definition.indpred, index_definition.indrelid)
                     FROM pg_catalog.pg_index index_definition
                     JOIN pg_catalog.pg_class table_relation
                       ON table_relation.oid = index_definition.indrelid
@@ -198,7 +184,6 @@ class PostgresMetadataService:
             raise
         except Exception as exc:
             raise MetadataError("Could not describe PostgreSQL table.") from exc
-
         if not columns:
             raise MetadataError("Table was not found or metadata is unavailable.")
         return {
@@ -211,4 +196,3 @@ class PostgresMetadataService:
             "indexes": indexes,
             "note": "PostgreSQL metadata returned from catalog views.",
         }
-
