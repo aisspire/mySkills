@@ -59,9 +59,9 @@ Windows 与 WSL/Linux 安装命令：
 
 安装器要求现有 Python 3.11+，只在运行时内创建 `.venv`，不调用 `sudo`、`apt` 或全局 pip。它只维护 `~/.codex/config.toml` 中自己的 MCP/`SessionStart` 区块，不注册 `SessionEnd`，运行态始终引用专用 venv。
 
-v2 不迁移 v1 profile 或 Credential Manager 凭据。检测到 v1 时安装会停止，必须先人工运行 `legacy-uninstall-v1.ps1` 完整卸载，再重新录入连接和项目授权。
+v2 不迁移 v1 profile 或 Credential Manager 凭据。v1 是 Windows/Credential Manager 架构：Windows 检测到 v1 时必须先人工运行 `legacy-uninstall-v1.ps1` 完整卸载；WSL/Linux 没有 v1 legacy 卸载命令，直接在自己的 `CODEX_HOME` 中安装 v2。两个环境随后分别重新录入连接和项目授权。
 
-快速开始：
+Windows PowerShell 快速开始：
 
 ```powershell
 .\tools\database-schema-bootstrap\install.ps1 -PythonPath 'C:\Path\to\python.exe'
@@ -72,14 +72,28 @@ $dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-boot
 & $dbs project grant erp-ro --project .
 & $dbs project enable erp-ro --project .
 & $dbs project use erp-ro --project .
+& $dbs service ensure
+& $dbs service status
 
 # 新开 Codex 会话后使用 list_databases / list_tables / describe_table
 ```
 
-WSL/Linux 使用同一控制核心：
+WSL/Linux 快速开始：
 
 ```bash
-$CODEX_HOME/database-schema-bootstrap/control/db-schema-bootstrap.sh connection list
+./tools/database-schema-bootstrap/install.sh --python /path/to/python3
+
+dbs="${CODEX_HOME:-$HOME/.codex}/database-schema-bootstrap/control/db-schema-bootstrap.sh"
+"$dbs" connection add erp-ro \
+  --host db.example.test --database erp --user metadata_reader
+"$dbs" project init --project .
+"$dbs" project grant erp-ro --project .
+"$dbs" project enable erp-ro --project .
+"$dbs" project use erp-ro --project .
+"$dbs" service ensure
+"$dbs" service status
+
+# 新开 Codex 会话后使用 list_databases / list_tables / describe_table
 ```
 
 密码通过隐藏输入写入 runtime 的 `config/secrets.json`。这是面向同一用户环境的防误用软边界，不抵御同用户恶意进程；密码不会进入命令参数、环境变量、日志、状态或 MCP 请求。`enabled=false` 也不是保密机制。

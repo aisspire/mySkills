@@ -55,4 +55,24 @@ WSL/Linux 安装器将 `config/` 设为 `0700`，`secrets.json` 设为 `0600`；
 
 这是防误用软边界，不抵御同一操作系统用户下的恶意进程。需要强隔离时，应使用独立服务账号或远程凭据服务，并限制 AI 运行账号直接访问 PostgreSQL。
 
-安装、控制、升级和卸载见 [tools/database-schema-bootstrap](../../tools/database-schema-bootstrap/README.md)。v1 的 Credential Manager 辅助脚本保留为 [`legacy-set-db-secret-v1.ps1`](legacy-set-db-secret-v1.ps1)，仅用于历史清理，不属于 v2 运行链路。
+## 双平台服务控制
+
+Windows PowerShell：
+
+```powershell
+$dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
+& $dbs service ensure
+& $dbs service status
+& $dbs service stop
+```
+
+WSL/Linux：
+
+```bash
+dbs="${CODEX_HOME:-$HOME/.codex}/database-schema-bootstrap/control/db-schema-bootstrap.sh"
+"$dbs" service ensure
+"$dbs" service status
+"$dbs" service stop
+```
+
+Windows 和 WSL/Linux 必须各自在自己的环境中运行控制入口；不能从 WSL 控制 Windows gateway，也不能共享 runtime 或 state。安装、连接/项目控制、升级和卸载的成对示例见 [tools/database-schema-bootstrap](../../tools/database-schema-bootstrap/README.md)。v1 的 Credential Manager 辅助脚本保留为 [`legacy-set-db-secret-v1.ps1`](legacy-set-db-secret-v1.ps1)，仅用于 Windows 历史清理，不属于 v2 运行链路。

@@ -56,21 +56,44 @@ WSL/Linux：
 
 v2 不迁移 v1 profile、`credential_target`、`target_tables`、`active-profile` 或 Credential Manager 密码。只要发现 v1 install-state、旧受管区块或无明确所有权的旧 runtime，安装立即停止。
 
-用户必须人工审查并执行历史全量卸载：
+v1 只存在于 Windows/Credential Manager 架构。Windows 用户必须先记录需要重新录入的非秘密连接字段，再人工审查并执行历史全量卸载：
 
 ```powershell
 .\tools\database-schema-bootstrap\legacy-uninstall-v1.ps1 -All -ConfirmAll
 ```
 
-这一步可能删除旧凭据和项目 profile，不可由 v2 安装器自动代办。若 v1 是损坏半状态，继续使用 legacy uninstaller 的 `-Repair` / `-ForceManaged` 规则处理；v2 不猜测所有权。
+这一步会删除旧凭据和项目 profile，不可由 v2 安装器自动代办。如果仅报告 `config.toml` 受管区块已修改，先备份该文件并确认标记边界内没有其他个人配置，再使用强制受管清理：
+
+```powershell
+$cfg = "$env:USERPROFILE\.codex\config.toml"
+Copy-Item -LiteralPath $cfg -Destination "$cfg.before-dsb-v1-uninstall.bak"
+
+.\tools\database-schema-bootstrap\legacy-uninstall-v1.ps1 `
+  -All -ConfirmAll -ForceManaged
+
+# 根据提示精确输入：FORCE DELETE
+```
+
+`-ForceManaged` 只放宽对已修改受管项的哈希保护；`config.toml` 仍按唯一、完整且 installation ID 匹配的标记区块删除，不会删除整个文件。`-Repair` 只适用于 install-state 已丢失、runtime 已不存在且仍有完整受管配置区块的半状态，不能用于普通哈希漂移。
+
+WSL/Linux 没有 v1 legacy 卸载命令。确认 WSL 使用自己的 `${CODEX_HOME:-$HOME/.codex}`，不要指向 Windows 用户 Profile，然后直接安装 WSL/Linux v2：
+
+```bash
+printf 'WSL CODEX_HOME=%s\n' "${CODEX_HOME:-$HOME/.codex}"
+./tools/database-schema-bootstrap/install.sh --python /path/to/python3
+```
 
 ## 控制入口
 
 安装后入口：
 
+Windows PowerShell：
+
 ```powershell
 $dbs = "$env:USERPROFILE\.codex\database-schema-bootstrap\control\db-schema-bootstrap.ps1"
 ```
+
+WSL/Linux：
 
 ```bash
 dbs="${CODEX_HOME:-$HOME/.codex}/database-schema-bootstrap/control/db-schema-bootstrap.sh"
@@ -86,6 +109,8 @@ connection add|list|show|update|set-password|remove
 
 添加连接时，非秘密字段可通过参数提供，密码始终由隐藏输入读取两次：
 
+Windows PowerShell：
+
 ```powershell
 & $dbs connection add erp-prod-ro `
   --host db.example.test `
@@ -96,6 +121,8 @@ connection add|list|show|update|set-password|remove
   --user metadata_reader
 ```
 
+WSL/Linux：
+
 ```bash
 "$dbs" connection add erp-prod-ro \
   --host db.example.test --port 5432 \
@@ -103,14 +130,24 @@ connection add|list|show|update|set-password|remove
   --schema public --user metadata_reader
 ```
 
-其他命令：
+Windows PowerShell 其他连接命令：
 
-```text
-connection list
-connection show erp-prod-ro
-connection update erp-prod-ro --host new-db.example.test
-connection set-password erp-prod-ro
-connection remove erp-prod-ro --confirm erp-prod-ro
+```powershell
+& $dbs connection list
+& $dbs connection show erp-prod-ro
+& $dbs connection update erp-prod-ro --host new-db.example.test
+& $dbs connection set-password erp-prod-ro
+& $dbs connection remove erp-prod-ro --confirm erp-prod-ro
+```
+
+WSL/Linux 其他连接命令：
+
+```bash
+"$dbs" connection list
+"$dbs" connection show erp-prod-ro
+"$dbs" connection update erp-prod-ro --host new-db.example.test
+"$dbs" connection set-password erp-prod-ro
+"$dbs" connection remove erp-prod-ro --confirm erp-prod-ro
 ```
 
 `list`、`show` 和所有 status 输出只显示 `<redacted>`，不会输出密码。删除仍被任何项目 grant 的 connection 会拒绝；解除全部 grant 后仍要求精确 ID 确认。
@@ -123,33 +160,68 @@ connection remove erp-prod-ro --confirm erp-prod-ro
 <git-root>/.agents/database-schema-bootstrap/access.json
 ```
 
-初始化会生成随机 UUID，并把 `/.agents/database-schema-bootstrap/` 写入 Git 实际 `info/exclude`。文件完全本地，不应提交：
+初始化会生成随机 UUID，并把 `/.agents/database-schema-bootstrap/` 写入 Git 实际 `info/exclude`。文件完全本地，不应提交。
 
-```text
-project init --project .
-project grant erp-prod-ro --project .
-project enable erp-prod-ro --project .
-project use erp-prod-ro --project .
-project status --project .
+Windows PowerShell：
+
+```powershell
+& $dbs project init --project .
+& $dbs project grant erp-prod-ro --project .
+& $dbs project enable erp-prod-ro --project .
+& $dbs project use erp-prod-ro --project .
+& $dbs project status --project .
+```
+
+WSL/Linux：
+
+```bash
+"$dbs" project init --project .
+"$dbs" project grant erp-prod-ro --project .
+"$dbs" project enable erp-prod-ro --project .
+"$dbs" project use erp-prod-ro --project .
+"$dbs" project status --project .
 ```
 
 `grant` 新增 connection ID 时默认 `enabled=false`。启用第一个 ID 会自动设为 active；禁用、撤销当前 active 会清空 active。显式 MCP `connection_id` 必须已启用；省略时使用 active。
 
-其他命令：
+Windows PowerShell 项目维护命令：
 
-```text
-project disable erp-prod-ro --project .
-project revoke erp-prod-ro --project .
-project rebind --project <new-root> --confirm-old-root
-project remove --project . --confirm <project-uuid>
+```powershell
+& $dbs project disable erp-prod-ro --project .
+& $dbs project revoke erp-prod-ro --project .
+& $dbs project rebind --project 'E:\code\new-root' --confirm-old-root
+& $dbs project remove --project . --confirm '<project-uuid>'
+```
+
+WSL/Linux 项目维护命令：
+
+```bash
+"$dbs" project disable erp-prod-ro --project .
+"$dbs" project revoke erp-prod-ro --project .
+"$dbs" project rebind --project /workspace/new-root --confirm-old-root
+"$dbs" project remove --project . --confirm '<project-uuid>'
 ```
 
 移动项目后使用 `rebind`。旧根仍存在时必须额外确认。每个 clone/worktree、Windows 环境和 WSL 环境都应独立 `project init`。
 
 ### 服务
 
-```text
-service ensure|start|status|stop
+Windows PowerShell：
+
+```powershell
+& $dbs service ensure
+& $dbs service start
+& $dbs service status
+& $dbs service stop
+```
+
+WSL/Linux：
+
+```bash
+"$dbs" service ensure
+"$dbs" service start
+"$dbs" service status
+"$dbs" service stop
 ```
 
 `SessionStart` 使用 `service ensure --hook`。无 Git 根、无 access 文件或无 enabled ID 时直接成功跳过，不启动 daemon。多个并发 hook 使用 `state/service.lock` 收敛为一个进程。
@@ -172,9 +244,13 @@ WSL/Linux 配置目录为 `0700`，secrets 为 `0600`；权限变宽时服务拒
 
 先打印清单：
 
+Windows PowerShell：
+
 ```powershell
 .\tools\database-schema-bootstrap\uninstall.ps1 -InventoryOnly
 ```
+
+WSL/Linux：
 
 ```bash
 ./tools/database-schema-bootstrap/uninstall.sh --inventory-only
@@ -182,9 +258,13 @@ WSL/Linux 配置目录为 `0700`，secrets 为 `0600`；权限变宽时服务拒
 
 普通卸载移除受管 Codex 区块、程序、venv、state 和 logs，但保留 connections、secrets、项目登记和项目 access：
 
+Windows PowerShell：
+
 ```powershell
 .\tools\database-schema-bootstrap\uninstall.ps1 -Confirm
 ```
+
+WSL/Linux：
 
 ```bash
 ./tools/database-schema-bootstrap/uninstall.sh --confirm
@@ -192,9 +272,13 @@ WSL/Linux 配置目录为 `0700`，secrets 为 `0600`；权限变宽时服务拒
 
 只有完整清理才删除不可恢复数据：
 
+Windows PowerShell：
+
 ```powershell
 .\tools\database-schema-bootstrap\uninstall.ps1 -All -ConfirmAll
 ```
+
+WSL/Linux：
 
 ```bash
 ./tools/database-schema-bootstrap/uninstall.sh --all --confirm-all
@@ -204,24 +288,43 @@ WSL/Linux 配置目录为 `0700`，secrets 为 `0600`；权限变宽时服务拒
 
 ## 验证
 
-标准库测试：
+Windows PowerShell 标准库测试：
+
+```powershell
+python -B -m unittest tests.test_database_schema_bootstrap -v
+```
+
+WSL/Linux 标准库测试：
 
 ```bash
 python3 -B -m unittest tests.test_database_schema_bootstrap -v
 ```
 
-完整门禁必须使用安装器新建且依赖完整的 venv，以覆盖 MCP SDK 工具枚举：
+完整门禁必须使用安装器新建且依赖完整的 venv，以覆盖 MCP SDK 工具枚举。
+
+Windows PowerShell：
+
+```powershell
+$venvPython = "$env:USERPROFILE\.codex\database-schema-bootstrap\.venv\Scripts\python.exe"
+& $venvPython -B -m unittest tests.test_database_schema_bootstrap -v
+```
+
+WSL/Linux：
 
 ```bash
-$CODEX_HOME/database-schema-bootstrap/.venv/bin/python \
+"${CODEX_HOME:-$HOME/.codex}/database-schema-bootstrap/.venv/bin/python" \
   -B -m unittest tests.test_database_schema_bootstrap -v
 ```
 
 双项目真实 Codex cwd 冒烟：
 
+Windows PowerShell：
+
 ```powershell
 .\tests\database-schema-bootstrap-cwd-smoke.ps1
 ```
+
+WSL/Linux：
 
 ```bash
 ./tests/database-schema-bootstrap-cwd-smoke.sh
