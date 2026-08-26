@@ -744,6 +744,16 @@ class MCPServerTests(unittest.IsolatedAsyncioTestCase):
             {tool.name for tool in tools.tools},
             {"list_databases", "list_tables", "describe_table"},
         )
+        for tool in tools.tools:
+            self.assertIsNotNone(tool.annotations)
+            annotations = tool.annotations.model_dump(
+                by_alias=True,
+                exclude_none=True,
+            )
+            self.assertIs(annotations["readOnlyHint"], True)
+            self.assertIs(annotations["openWorldHint"], False)
+            self.assertNotIn("destructiveHint", annotations)
+            self.assertNotIn("idempotentHint", annotations)
         self.assertNotIn("execute_sql", repr(tools))
         self.assertIn("erp-ro", repr(result))
 
@@ -1127,17 +1137,33 @@ class InstallerAndUninstallerTests(unittest.TestCase):
             skip_dependency_install=True,
         )
 
-    def test_managed_block_uses_dedicated_venv_three_tools_and_no_session_end(self):
+    def test_managed_block_uses_dedicated_venv_read_only_approval_and_three_tools(self):
         runtime = self.codex_home / "database-schema-bootstrap"
         block = managed_config_block("11111111-1111-4111-8111-111111111111", runtime, venv_python(runtime))
         self.assertIn(str(venv_python(runtime)), block)
         self.assertIn('enabled_tools = ["list_databases", "list_tables", "describe_table"]', block)
+        self.assertIn('default_tools_approval_mode = "writes"', block)
+        self.assertNotIn('"approve"', block)
+        self.assertNotIn("tool_approval_modes", block)
         self.assertIn("[[hooks.SessionStart]]", block)
         self.assertNotIn("SessionEnd", block)
-        content = replace_managed_config("user_setting = true\n", block)
+
+        old_block = block.replace('default_tools_approval_mode = "writes"\n', "")
+        old_content = (
+            'approvals_reviewer = "auto"\n'
+            "user_setting = true\n\n"
+            + old_block
+            + '\n\n[features]\nexample = "preserved"\n'
+        )
+        content = replace_managed_config(old_content, block)
         installation_id, parsed = inspect_managed_config(content)
         self.assertEqual(installation_id, "11111111-1111-4111-8111-111111111111")
         self.assertEqual(parsed, block)
+        self.assertEqual(content.count("database-schema-bootstrap v2 managed id="), 2)
+        self.assertIn('approvals_reviewer = "auto"', content)
+        self.assertIn("user_setting = true", content)
+        self.assertIn('[features]\nexample = "preserved"', content)
+        self.assertNotIn(old_block, content)
 
     def test_legacy_v1_uninstaller_keeps_credentials_before_core_mutation(self):
         source = (

@@ -43,10 +43,15 @@ def create_server(client: Any) -> Any:
     """Expose exactly three metadata tools and optional connection selection."""
 
     from mcp.server import MCPServer
+    from mcp.types import ToolAnnotations
 
     server = MCPServer("database-schema-bootstrap")
+    read_only_annotations = ToolAnnotations(
+        read_only_hint=True,
+        open_world_hint=False,
+    )
 
-    @server.tool()
+    @server.tool(annotations=read_only_annotations)
     def list_databases(connection_id: str | None = None) -> list[dict[str, str]]:
         """List database names for one enabled project connection."""
 
@@ -54,13 +59,13 @@ def create_server(client: Any) -> Any:
             "list_databases", lambda: client.list_databases(connection_id)
         )
 
-    @server.tool()
+    @server.tool(annotations=read_only_annotations)
     def list_tables(connection_id: str | None = None) -> list[dict[str, str]]:
         """List base tables for one enabled project connection."""
 
         return _safe_call("list_tables", lambda: client.list_tables(connection_id))
 
-    @server.tool()
+    @server.tool(annotations=read_only_annotations)
     def describe_table(
         table: str, connection_id: str | None = None
     ) -> dict[str, object]:

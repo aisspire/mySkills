@@ -178,6 +178,7 @@ def managed_config_block(
         )
         + "]",
         'enabled_tools = ["list_databases", "list_tables", "describe_table"]',
+        'default_tools_approval_mode = "writes"',
         "startup_timeout_sec = 30",
         "tool_timeout_sec = 30",
         "enabled = true",
