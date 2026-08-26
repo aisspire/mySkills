@@ -20,6 +20,7 @@ from installer_common import (
     atomic_write_bytes,
     inspect_managed_config,
     is_strict_v2_data_layout,
+    normalized_managed_config_block,
     read_install_state,
     remove_managed_config,
     sha256_bytes,
@@ -97,6 +98,9 @@ class Uninstaller:
             raise UninstallError("Codex config.toml could not be read.") from exc
         try:
             installation_id, block = inspect_managed_config(content)
+            normalized_block = (
+                normalized_managed_config_block(block) if block is not None else None
+            )
         except InstallError as exc:
             return {"status": "modified", "content": content, "block": ""}
         if block is None:
@@ -105,7 +109,9 @@ class Uninstaller:
             return {"status": "unowned", "content": content, "block": block}
         if (
             installation_id != str(state["installation_id"]).lower()
-            or sha256_bytes(block.encode("utf-8")) != state["config_block_hash"]
+            or normalized_block is None
+            or sha256_bytes(normalized_block.encode("utf-8"))
+            != state["config_block_hash"]
         ):
             return {"status": "modified", "content": content, "block": block}
         return {"status": "verified", "content": content, "block": block}

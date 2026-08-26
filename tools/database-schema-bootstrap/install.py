@@ -20,6 +20,7 @@ from installer_common import (
     is_strict_v2_data_layout,
     managed_config_block,
     managed_file_manifest,
+    normalized_managed_config_block,
     read_install_state,
     replace_managed_config,
     sha256_bytes,
@@ -185,7 +186,8 @@ class Installer:
         installation_id, block = inspect_managed_config(content)
         if installation_id != str(state["installation_id"]).lower() or block is None:
             raise InstallError("Installation state and managed Codex block do not match.")
-        if sha256_bytes(block.encode("utf-8")) != state["config_block_hash"]:
+        normalized_block = normalized_managed_config_block(block)
+        if sha256_bytes(normalized_block.encode("utf-8")) != state["config_block_hash"]:
             raise InstallError("The managed Codex block was edited; refusing upgrade.")
         for record in state["managed_files"]:
             if not isinstance(record, dict) or set(record) != {"path", "sha256"}:

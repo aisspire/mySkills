@@ -40,6 +40,8 @@ WSL/Linux：
 
 安装器在 staging runtime 中创建专用 venv，安装 `mcp` 与 `psycopg`，完成 self-check 后才停止旧 daemon 并替换 runtime。升级保留 `config/` 和日志；staging 失败时旧 v2 runtime 与 Codex 配置保持不变。
 
+Codex 在信任 SessionStart hook 后可能把 `[hooks.state]` 写到受管标记内。升级器只接受由 `trusted_hash` 和可选 `enabled` 组成的严格 trust 状态，校验原受管内容后将这些状态原样迁到标记外；其它未知表或字段仍按“受管区块被修改”失败关闭。普通卸载同样保留迁出的 Codex trust 状态。
+
 `--skip-dependency-install` / `-SkipDependencyInstall` 仅用于离线测试。生成的 `install-state.json` 会标记 `incomplete`，adapter、hook 与 `service ensure` 都拒绝启动，不能作为可用安装。
 
 安装器只维护 `~/.codex/config.toml` 中带 installation ID 的区块：
@@ -58,6 +60,12 @@ WSL/Linux：
 旧 runtime 未给三个元数据工具声明只读属性，也未把 MCP 默认审批模式限制为写操作；调用可能误入 automatic approval review，并在审批服务限流时以 429 失败。使用上面的现有安装命令原地升级，确认安装成功后关闭并新开 Codex 会话，让新 adapter 注解和受管配置同时生效。
 
 不要通过 `psql`、Python 驱动、任意 SQL MCP 或读取连接密码绕过审批。若当前 Codex 版本不支持 `default_tools_approval_mode = "writes"`，先升级 Codex，再重新运行安装命令；安装器不会自动升级 Codex 或修改全局 `approvals_reviewer`。
+
+### 多个 CODEX_HOME 共享 runtime
+
+`config.toml` 受管块中的 venv、adapter、runtime 和 SessionStart hook 都是绝对路径。如果备用 `CODEX_HOME` 只是隔离 Codex 登录方式和密钥，并且两个身份应共享相同数据库元数据权限，可以让备用配置继续指向主 `$HOME/.codex/database-schema-bootstrap`；主 runtime 只升级一次，但每个 `CODEX_HOME/config.toml` 都必须包含相同的三工具白名单和 `default_tools_approval_mode = "writes"`。
+
+不要为同步配置而重新复制整个 `.codex`。整目录复制会同时复制登录资料、瞬时 service state 和路径绑定的 install-state。若两个 Codex 身份也必须隔离数据库连接、密码或项目授权，则应分别安装 runtime，并分别执行 connection/project 配置。
 
 ### v1 边界
 

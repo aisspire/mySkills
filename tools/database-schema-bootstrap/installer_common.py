@@ -7,6 +7,7 @@ import pathlib
 import re
 import shlex
 import tempfile
+import tomllib
 from typing import Any, Iterable, Mapping
 
 
@@ -24,6 +25,8 @@ V1_MARKER_PATTERN = re.compile(
     r"^# (?:>>>|<<<) database-schema-bootstrap managed id=[0-9a-fA-F-]{36} (?:>>>|<<<)$",
     re.MULTILINE,
 )
+CODEX_HOOK_STATE_MARKER = "\n[hooks.state]\n"
+CODEX_HOOK_TRUST_HASH_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 INSTALL_STATE_FIELDS = {
     "version",
     "installation_id",
@@ -211,13 +214,55 @@ def inspect_managed_config(content: str) -> tuple[str | None, str | None]:
     return matches[0].group("id").lower(), block
 
 
+def _split_codex_hook_state(block: str) -> tuple[str, str | None]:
+    state_start = block.find(CODEX_HOOK_STATE_MARKER)
+    if state_start < 0:
+        return block, None
+    if block.find(CODEX_HOOK_STATE_MARKER, state_start + 1) >= 0:
+        raise InstallError("Codex hook trust state is duplicated in the managed block.")
+
+    end_start = block.rfind("\n# <<< database-schema-bootstrap v2 managed id=")
+    if end_start <= state_start:
+        raise InstallError("Codex hook trust state is not at the managed block boundary.")
+    state = block[state_start + 1 : end_start].rstrip("\n")
+    try:
+        parsed = tomllib.loads(state)
+    except tomllib.TOMLDecodeError as exc:
+        raise InstallError("Codex hook trust state is invalid.") from exc
+    if set(parsed) != {"hooks"} or set(parsed["hooks"]) != {"state"}:
+        raise InstallError("Codex hook trust state contains unsupported tables.")
+    records = parsed["hooks"]["state"]
+    if not isinstance(records, dict):
+        raise InstallError("Codex hook trust state is invalid.")
+    for record in records.values():
+        if (
+            not isinstance(record, dict)
+            or not record
+            or not set(record) <= {"trusted_hash", "enabled"}
+            or not isinstance(record.get("trusted_hash"), str)
+            or CODEX_HOOK_TRUST_HASH_PATTERN.fullmatch(record["trusted_hash"]) is None
+            or ("enabled" in record and not isinstance(record["enabled"], bool))
+        ):
+            raise InstallError("Codex hook trust state contains unsupported fields.")
+
+    normalized = block[:state_start].rstrip("\n") + "\n" + block[end_start + 1 :]
+    return normalized, state
+
+
+def normalized_managed_config_block(block: str) -> str:
+    normalized, _ = _split_codex_hook_state(block)
+    return normalized
+
+
 def replace_managed_config(content: str, block: str) -> str:
     normalized = content.replace("\r\n", "\n")
     _, existing = inspect_managed_config(normalized)
     if existing is None:
         prefix = normalized.rstrip("\n")
         return prefix + ("\n\n" if prefix else "") + block + "\n"
-    return normalized.replace(existing, block, 1).rstrip("\n") + "\n"
+    _, hook_state = _split_codex_hook_state(existing)
+    replacement = block + ("\n\n" + hook_state if hook_state else "")
+    return normalized.replace(existing, replacement, 1).rstrip("\n") + "\n"
 
 
 def remove_managed_config(content: str) -> str:
@@ -225,8 +270,13 @@ def remove_managed_config(content: str) -> str:
     _, existing = inspect_managed_config(normalized)
     if existing is None:
         return content
+    _, hook_state = _split_codex_hook_state(existing)
+    if hook_state is not None:
+        return normalized.replace(existing, hook_state, 1).rstrip("\n") + "\n"
     before, after = normalized.split(existing, 1)
-    cleaned = before.rstrip("\n") + after.lstrip("\n")
+    left = before.rstrip("\n")
+    right = after.lstrip("\n")
+    cleaned = left + ("\n\n" if left and right else "") + right
     return (cleaned + "\n") if cleaned else ""
 
 

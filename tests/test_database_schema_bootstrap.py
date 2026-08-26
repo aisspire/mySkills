@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import time
+import tomllib
 import unittest
 import uuid
 from unittest import mock
@@ -44,6 +45,7 @@ from installer_common import (  # noqa: E402
     InstallError,
     inspect_managed_config,
     managed_config_block,
+    remove_managed_config,
     replace_managed_config,
     venv_python,
 )
@@ -152,6 +154,23 @@ def make_git_project(parent: pathlib.Path, name: str = "project") -> pathlib.Pat
     root.mkdir()
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     return root
+
+
+def with_codex_hook_state(block: str, *config_paths: str) -> tuple[str, str]:
+    records = ["[hooks.state]"]
+    for index, config_path in enumerate(config_paths):
+        records.extend(
+            [
+                "",
+                f'[hooks.state."{config_path}:session_start:0:0"]',
+                f'trusted_hash = "sha256:{str(index + 1) * 64}"',
+            ]
+        )
+        if index == 0:
+            records.append("enabled = true")
+    state = "\n".join(records)
+    end_marker = "\n# <<< database-schema-bootstrap v2 managed id="
+    return block.replace(end_marker, "\n\n" + state + end_marker, 1), state
 
 
 class FakeTransaction:
@@ -1149,10 +1168,15 @@ class InstallerAndUninstallerTests(unittest.TestCase):
         self.assertNotIn("SessionEnd", block)
 
         old_block = block.replace('default_tools_approval_mode = "writes"\n', "")
+        old_block_with_state, hook_state = with_codex_hook_state(
+            old_block,
+            "/home/example/.codex/config.toml",
+            "/home/example/.codex-env/.codex-zy/config.toml",
+        )
         old_content = (
             'approvals_reviewer = "auto"\n'
             "user_setting = true\n\n"
-            + old_block
+            + old_block_with_state
             + '\n\n[features]\nexample = "preserved"\n'
         )
         content = replace_managed_config(old_content, block)
@@ -1164,6 +1188,80 @@ class InstallerAndUninstallerTests(unittest.TestCase):
         self.assertIn("user_setting = true", content)
         self.assertIn('[features]\nexample = "preserved"', content)
         self.assertNotIn(old_block, content)
+        self.assertIn(hook_state, content)
+        self.assertLess(content.index(block), content.index(hook_state))
+
+    def test_upgrade_accepts_and_relocates_codex_hook_trust_state(self):
+        runtime = self.installer().install()
+        config_path = self.codex_home / "config.toml"
+        content = config_path.read_text()
+        _, block = inspect_managed_config(content)
+        self.assertIsNotNone(block)
+        block_with_state, hook_state = with_codex_hook_state(
+            block,
+            str(config_path),
+        )
+        config_path.write_text(content.replace(block, block_with_state, 1))
+
+        self.installer().install()
+
+        upgraded = config_path.read_text()
+        _, upgraded_block = inspect_managed_config(upgraded)
+        self.assertIsNotNone(upgraded_block)
+        self.assertNotIn("[hooks.state]", upgraded_block)
+        self.assertIn(hook_state, upgraded)
+        self.assertLess(upgraded.index(upgraded_block), upgraded.index(hook_state))
+        self.assertTrue(runtime.exists())
+
+    def test_remove_managed_block_preserves_following_hook_state_and_toml(self):
+        runtime = self.codex_home / "database-schema-bootstrap"
+        block = managed_config_block(
+            "11111111-1111-4111-8111-111111111111",
+            runtime,
+            venv_python(runtime),
+        )
+        _, hook_state = with_codex_hook_state(
+            block,
+            "/home/example/.codex/config.toml",
+        )
+        content = (
+            "user_setting = true\n\n"
+            + block
+            + "\n\n"
+            + hook_state
+            + '\n\n[features]\nexample = "preserved"\n'
+        )
+
+        cleaned = remove_managed_config(content)
+
+        self.assertNotIn("database-schema-bootstrap v2 managed", cleaned)
+        self.assertIn(hook_state, cleaned)
+        self.assertIn('[features]\nexample = "preserved"', cleaned)
+        parsed = tomllib.loads(cleaned)
+        self.assertIs(parsed["user_setting"], True)
+        self.assertEqual(parsed["features"]["example"], "preserved")
+
+    def test_unknown_hook_state_field_still_blocks_upgrade(self):
+        runtime = self.installer().install()
+        config_path = self.codex_home / "config.toml"
+        content = config_path.read_text()
+        _, block = inspect_managed_config(content)
+        self.assertIsNotNone(block)
+        block_with_state, _ = with_codex_hook_state(block, str(config_path))
+        config_path.write_text(
+            content.replace(
+                block,
+                block_with_state.replace(
+                    "enabled = true",
+                    'enabled = true\ncommand = "unexpected"',
+                ),
+                1,
+            )
+        )
+
+        with self.assertRaises(InstallError):
+            self.installer().install()
+        self.assertTrue(runtime.exists())
 
     def test_legacy_v1_uninstaller_keeps_credentials_before_core_mutation(self):
         source = (
@@ -1231,6 +1329,17 @@ class InstallerAndUninstallerTests(unittest.TestCase):
 
     def test_ordinary_uninstall_preserves_connection_data_and_all_removes_it(self):
         runtime = self.installer().install()
+        config_path = self.codex_home / "config.toml"
+        config_content = config_path.read_text()
+        _, config_block = inspect_managed_config(config_content)
+        self.assertIsNotNone(config_block)
+        block_with_state, hook_state = with_codex_hook_state(
+            config_block,
+            str(config_path),
+        )
+        config_path.write_text(
+            config_content.replace(config_block, block_with_state, 1)
+        )
         connections = json.loads((runtime / "config" / "connections.json").read_text())
         connections["connections"]["erp-ro"] = connection_to_json(profile())
         atomic_write_json(runtime / "config" / "connections.json", connections)
@@ -1240,7 +1349,9 @@ class InstallerAndUninstallerTests(unittest.TestCase):
         report = Uninstaller(self.codex_home).uninstall(set(DEFAULT_CATEGORIES))
         self.assertTrue((runtime / "config" / "connections.json").exists())
         self.assertTrue((runtime / "config" / "secrets.json").exists())
-        self.assertNotIn("database-schema-bootstrap v2 managed", (self.codex_home / "config.toml").read_text())
+        uninstalled_config = config_path.read_text()
+        self.assertNotIn("database-schema-bootstrap v2 managed", uninstalled_config)
+        self.assertIn(hook_state, uninstalled_config)
         self.assertTrue(report)
 
         Uninstaller(self.codex_home).uninstall(set(ALL_CATEGORIES))
