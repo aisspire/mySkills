@@ -1,3 +1,4 @@
-display_name: UI Frontend Workflow
-short_description: Self-contained UI/UX design, frontend implementation, and review workflow.
-default_prompt: Use this skill when UI, UX, frontend implementation, visual polish, responsive behavior, accessibility, or web interface review is involved.
+interface:
+  display_name: "UI 前端工作流"
+  short_description: "按产品内容设计、实现和审查 Web 界面，兼顾视觉、文案与工程质量"
+  default_prompt: "使用 $ui-frontend-workflow 设计、实现或审查当前 Web 界面，结合现有设计系统并验证相关交互状态。"

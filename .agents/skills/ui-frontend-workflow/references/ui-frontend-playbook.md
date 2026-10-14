@@ -1,247 +1,169 @@
-# UI Frontend Playbook
+# UI 前端手册
 
-## Purpose
+本仓库改写并整合设计、实现和审查规则；2026-10-14 更新的上游依据见 [第三方声明](../THIRD_PARTY_NOTICES.md)。
 
-This reference is the self-contained operating manual for `ui-frontend-workflow`. It distills design planning, frontend implementation, and web interface review into one portable workflow.
+按任务选择章节：新建或重设计读第一至第三阶段；局部修复读相关实现规则与审查项；仅审查从第三阶段开始；仅设计结合第一阶段与交付说明。
 
-## Fast Routing
+## 第一阶段：设计与计划自审
 
-Use the whole workflow when the user asks to build, redesign, polish, improve, or review UI.
+### 产品内容与设计依据
 
-If the request is only:
-- design advice: complete Design and Handoff Notes
-- implementation: complete Design briefly, then Implement and Review
-- review: complete Review first, then recommend fixes
-- fix UI bug: identify the broken state, patch it, then run a focused Review
+先确定具体产品或题材、受众、主要任务、首屏目标、次要操作、导航和内容密度。真实内容、行业特征、材料与使用习惯是视觉选择的依据；缺失内容时用贴合场景的示例，并说明假设。
 
-## Phase 1: Design
+以下方向是起点，用户需求和已有品牌规范优先：
 
-### Product Fit
-
-Classify the product before choosing visuals:
-
-| Product type | Design posture |
+| 产品类型 | 关注点 |
 | --- | --- |
-| SaaS, CRM, admin, ops tools | quiet, dense, scannable, predictable |
-| ecommerce | product-first, trust-building, fast comparison |
-| dashboard/data | hierarchy, density control, chart clarity |
-| portfolio/editorial | expressive composition, strong typography |
-| game/creative toy | playful, animated, immersive |
-| mobile utility | direct, thumb-friendly, minimal friction |
+| SaaS、CRM、后台与运营工具 | 扫描效率、清晰层级、适当密度、可预测操作 |
+| 电商 | 商品表达、信任、快速比较 |
+| 仪表盘与数据产品 | 信息层级、密度控制、图表可读性 |
+| 作品集与编辑内容 | 排版、内容节奏、表达性构图 |
+| 游戏与创意工具 | 趣味、沉浸、交互反馈 |
+| 移动工具 | 直接操作、拇指可达、低摩擦 |
 
-### Design Brief
+### 简短设计计划
 
-Capture:
-- user and job-to-be-done
-- primary screen goal
-- secondary actions
-- navigation model
-- content density
-- visual tone
-- typography direction
-- color role system
-- motion rules
-- accessibility constraints
+新建或重设计界面时，明确：
 
-### Visual Direction
+- 颜色：背景、文字、主操作、状态与焦点的语义；优先复用项目 token，新增颜色给出角色和取值。
+- 字体：标题、正文和数据的角色、层级、字重与间距；一个字体家族也可形成清晰层级。
+- 布局：信息优先级、内容密度、对齐、导航、主操作，以及移动端调整。
+- 辨识点：哪一个内容或交互值得突出，以及它与当前需求的关系；周围元素保持清晰克制。
+- 约束：项目组件、资源、可访问性、响应式和动效需求。
 
-Choose one clear direction and execute it consistently:
-- refined minimal
-- utilitarian professional
-- editorial
-- playful
-- luxury
-- industrial
-- brutalist
-- retro-futuristic
-- warm human
-- high-density analytical
+配色数量由内容和现有系统决定。需要比较信息布局时再画简短线框或 ASCII 草图；局部任务只记录相关选择。
 
-Avoid generic UI defaults:
-- anonymous purple-blue gradients
-- repeated card-only layouts
-- placeholder hero sections
-- decorative blobs/orbs
-- oversized marketing composition for internal tools
-- emojis as structural icons
+### 编码前自审
 
-### Design System
+检查计划中的选择：
 
-Prefer semantic tokens:
-- `surface`
-- `surface-muted`
-- `text-primary`
-- `text-secondary`
-- `border`
-- `primary`
-- `danger`
-- `success`
-- `warning`
-- `focus`
+- 是否能从当前产品、内容或用户任务解释，还是换个产品名称也会得到同样的页面？
+- 首屏是否直接呈现重要内容、产品状态或核心操作？
+- 字体、色彩和密度是否符合项目约束及用户需求？
+- 边框、分隔线、编号和标签是否提供信息？编号只用于确有顺序的内容。
+- 是否有不服务需求的装饰或多个互相争夺注意力的重点？
 
-Use component states:
-- default
-- hover
-- active
-- focus-visible
-- disabled
-- loading
-- selected
-- error
-- empty
+发现缺乏依据的选择时，先调整计划，再实现；只说明对用户有帮助的决定，不要求逐项展示内部推演。
 
-## Phase 2: Implement
+### 模板感检查线索
 
-### Project Fit
+以下组合值得追问其用途，不能单凭出现就判为缺陷：
 
-Before editing:
-- inspect existing stack and component patterns
-- reuse local UI components, icons, and helpers
-- keep changes scoped to requested behavior
-- avoid adding dependencies unless clearly needed
+- 奶油色背景、衬线标题、陶土色强调。
+- 近黑背景搭配单一高亮酸绿色或朱红色。
+- 细线、零圆角和密集报纸分栏。
+- 相同圆角、阴影和层级的重复卡片，以及没有信息用途的渐变装饰。
+- 每个标题上方固定的全大写标签、无意义编号、机械化的分隔文案和按钮箭头。
+- 与内容无关的紫蓝渐变、光球、占位首屏或内部工具的大型营销构图。
 
-### Required UI States
+用户指定或内容确实适合这些风格时保留它们。检查的是选择依据，避免为追求差异而更换品牌字体、颜色或组件。
 
-Add states users expect:
-- loading or skeleton for async content
-- empty state with a next action
-- error state with recovery path
-- disabled state with semantic disabled attributes
-- focus-visible state for keyboard users
-- responsive layout at mobile and desktop sizes
+## 第二阶段：实现
 
-### Layout Rules
+### 项目适配与设计系统
 
-- Use stable dimensions for fixed-format elements.
-- Reserve image/video/chart space with width/height or aspect ratio.
-- Avoid horizontal scrolling on mobile.
-- Keep buttons and controls large enough for touch.
-- Keep text inside its container; wrap before truncating.
-- Use predictable spacing scales.
-- Do not nest cards inside cards unless the inner card is a repeated item or modal-like object.
+编辑前检查技术栈、组件、图标、字体、工具函数和局部样式。复用已有模式，保持请求范围，避免不必要的新依赖。结构性图标优先使用项目图标体系，emoji 按内容需要用于装饰或情绪表达。
 
-### Typography
+颜色使用语义 token，如 `surface`、`surface-muted`、`text-primary`、`text-secondary`、`border`、`primary`、`danger`、`success`、`warning`、`focus`。名称遵循项目约定。
 
-- Use hierarchy through size, weight, spacing, and contrast.
-- Body text should remain readable on mobile.
-- Avoid negative letter spacing.
-- Use tabular numbers for metrics, prices, timers, and tables.
-- Reserve huge display type for true heroes, not dense tool panels.
+覆盖相关组件的默认、悬停、激活、`focus-visible`、禁用、加载、选中、错误和空状态；只补充当前功能需要的状态。
 
-### Color
+### 状态与布局
 
-- Use semantic color roles instead of random raw values.
-- Check contrast for text and icons.
-- Do not rely on color alone for errors, success, or chart meaning.
-- Avoid one-note palettes dominated by one hue unless the brand requires it.
+- 异步内容提供加载反馈；空状态说明下一步；错误提供恢复路径。
+- 禁用控件使用语义属性，键盘操作保留可见焦点。
+- 图片、视频和图表预留尺寸或宽高比，避免加载后跳动。
+- 移动端避免意外横向滚动；确需横向阅读的数据表等内容保留可发现的滚动方式。
+- 控件尺寸与间距适合触控，固定头部和底部不遮挡内容或焦点。
+- 文字先合理换行，需要截断时仍能获取完整信息；使用项目间距尺度。
+- 用信息层级组织分组，避免无意义的卡片套卡片；重复条目和明确的容器结构按需使用。
+- 检查 CSS 选择器优先级与覆盖关系，特别是区块间距和局部组件样式。
 
-### Motion
+### 排版
 
-- Use motion to explain cause and effect.
-- Prefer transform and opacity.
-- Keep micro-interactions responsive.
-- Respect reduced-motion.
-- Do not block user input during animation.
+- 用字号、字重、间距和对比形成层级，保证移动端正文可读。
+- 遵守项目或品牌字体；有意选择字体角色，避免为追求特殊感增加字体数量。
+- 正文行长结合语言、字号和容器调整，避免大屏出现难以追踪的长行；衬线正文适当增加行距。
+- 正文默认保持自然字距；标题或品牌排版可适度收紧，检查字体、语言和小屏下的可读性。
+- 指标、价格、计时器和表格按需使用等宽数字。
+- 大型展示字用于真正的展示区域；高密度工具保持信息效率。
+- 单词强调、全大写标签和标题上方短标签须有内容或层级用途，不作为每页固定装饰。
 
-### Assets
+### 色彩与动效
 
-Use real, generated, or locally appropriate visual assets when a site, app, game, or visual experience needs them. Primary media should reveal the actual product, place, object, state, gameplay, or person when relevant.
+- 颜色按语义使用，检查文字与图标对比度，错误、成功和图表含义不能仅靠颜色表达。
+- 单色或单一主色方案可以使用；通过层级、明度、对比和必要的状态色保证可读性。
+- 动效解释打开、展开、确认等操作造成的变化，优先使用 `transform` 和 `opacity`。
+- 自动播放、入场和滚动动效按需使用；避免所有区块统一滑入、每张卡片都附加装饰动画。
+- 微交互及时反馈，尊重减少动效设置，不阻塞输入。
 
-## Phase 3: Review
+### 界面文案
 
-Findings should be concrete. For code review, cite file and line when possible.
+- 用用户熟悉的任务和对象命名。面向普通用户的通知管理写“通知设置”；技术产品确需 webhook 配置时保留准确术语。
+- 按钮明确动作与结果，例如“保存设置”“创建项目”；同一操作在按钮、确认和反馈中保持一致名称。
+- 标签说明字段，帮助文字解释输入要求，示例帮助理解；每段文字承担明确用途。
+- 错误说明发生了什么和可行的恢复步骤，例如“保存失败，请重试”；已知原因时补充具体原因，不推测未确认的问题。
+- 空状态说明当前状态并提供相关操作，例如“还没有项目，创建第一个项目”。
+- 语气适配品牌与受众，使用简短、直接的语言；避免无信息量的宣传、情绪填充和重复道歉。
 
-### Accessibility
+### 素材
 
-Check:
-- semantic controls for actions
-- labels for inputs
-- accessible names for icon-only buttons
-- visible focus indicators
-- keyboard navigation
-- modal focus management
-- ARIA only when semantic HTML is insufficient
-- alt text for meaningful images
-- reduced-motion support
+按界面需要使用真实、生成或合适的本地素材。主要媒体应展示相关产品、场所、对象、状态、玩法或人物。优先项目已有或已批准的字体、图标与素材；使用新增外部资源时说明来源和必要性，遵循项目的许可与资源规则。
 
-### Interaction
+## 第三阶段：审查与验证
 
-Check:
-- hover is not the only way to discover or use functionality
-- buttons show pressed/loading/disabled feedback
-- destructive actions are separated and confirmed when needed
-- form errors appear near fields and explain recovery
-- toast/alert messages do not steal focus unnecessarily
-- primary action is visually clear
+问题应具体，代码审查尽可能引用文件和行号。局部任务检查相关状态和受影响区域，新建或重设计界面覆盖以下维度。
 
-### Responsive
+### 可访问性
 
-Check:
-- no unintended horizontal scroll
-- mobile content priority is sensible
-- fixed headers/footers do not cover content
-- text wraps cleanly
-- controls remain usable on small screens
-- large screens do not create unreadable line lengths
+- 操作使用语义控件；输入有标签；纯图标按钮有可访问名称。
+- 键盘导航可用，焦点可见；弹窗正确管理焦点。
+- 优先语义 HTML，在语义不足时补充 ARIA。
+- 有意义的图片提供替代文本，动效尊重减少动效设置。
+- 检查文字、图标和控件状态的对比度。
 
-### Visual Quality
+### 交互与反馈
 
-Check:
-- consistent icon family and stroke style
-- aligned baselines and spacing
-- purposeful shadows/elevation
-- no awkward text overflow
-- no incoherent overlaps
-- no placeholder imagery in production-facing UI
-- visual density matches the domain
+- 功能不依赖悬停才能发现或使用；按钮提供按下、加载和禁用反馈。
+- 主操作清晰；破坏性操作适当分隔，按产品风险设置确认。
+- 表单错误靠近字段，说明恢复方式；通知不无故抢占焦点。
+- 动作名称一致，错误和空状态提供合理下一步。
 
-### Performance-Sensitive UI
+### 响应式
 
-Check:
-- image dimensions or aspect ratios prevent layout shift
-- heavy media is lazy-loaded when below the fold
-- lists with many rows are virtualized or paginated when needed
-- animations avoid layout thrashing
-- third-party embeds/scripts are justified
+- 无意外横向溢出，移动端内容优先级合理。
+- 固定区域不遮挡内容，文字换行正常，小屏控件可用。
+- 大屏行长与内容宽度适合阅读。
 
-## Output Patterns
+### 视觉质量
 
-### For Build Requests
+- 图标族和线条风格一致；基线、对齐和间距协调。
+- 阴影、边框、标签和编号有层级或信息用途。
+- 没有异常溢出、不连贯重叠或面向生产界面的无关占位素材。
+- 密度贴合产品，视觉重点服务当前内容，模板感检查尊重品牌约束。
 
-Report:
-- what was built
-- key files changed
-- verification performed
-- remaining risks
+### 性能与布局稳定性
 
-### For Review Requests
+- 媒体尺寸或宽高比防止布局跳动；首屏以下重媒体按需延迟加载。
+- 大量行或条目按需分页或虚拟化。
+- 动画避免反复触发布局计算，第三方嵌入与脚本有必要性。
 
-Lead with findings:
+### 验证边界
+
+运行项目已有的相关检查，有条件时在移动端和桌面端视口查看实际界面。对加载、空、错误、键盘与焦点等受影响状态进行检查。
+
+区分代码检查、实际交互检查和截图检查，准确报告已完成的验证及缺口；缺少证据时不宣称完整规范合规或视觉效果已验证。
+
+## 交付说明
+
+| 请求 | 输出重点 |
+| --- | --- |
+| 实现 | 完成的行为、关键文件、相关设计决定、验证结果与剩余限制 |
+| 审查 | 问题和依据优先，其次是待确认项、简短结论与验证缺口 |
+| 仅设计 | 设计方向、信息架构、视觉系统、交互、实现交接与审查重点 |
+
+审查问题示例：
 
 ```text
-path/to/file.tsx:42 [P1] Icon-only button has no accessible name. Add visible text or aria-label.
+path/to/file.tsx:42 [P1] 纯图标按钮缺少可访问名称；增加可见文字或 aria-label。
 ```
-
-Then include:
-- open questions
-- brief summary
-- verification gaps
-
-### For Design-Only Requests
-
-Return:
-- design direction
-- information architecture
-- visual system
-- interaction notes
-- implementation handoff
-- review checklist
-
-## Verification
-
-Before claiming completion:
-- run the project's relevant checks when available
-- inspect the UI visually when practical
-- mention exactly what was and was not verified
-
-Do not claim guideline compliance without evidence.

@@ -1,86 +1,80 @@
 ---
 name: ui-frontend-workflow
-description: Use when a task is related to UI, UX, frontend design, web interface creation, component/page implementation, visual polishing, responsive behavior, accessibility, or UI review. This self-contained skill runs a design to implementation to review workflow for frontend/UI work without requiring frontend-design, ui-ux-pro-max, or web-design-guidelines to be installed.
+description: Design, implement, refine, or review web interfaces when a task involves UI/UX, pages, components, visual polish, responsive behavior, accessibility, or UI bugs. 用于 Web 界面的 UI/UX 设计、页面与组件实现、视觉优化、响应式、可访问性审查或 UI 缺陷修复；纯后端任务或独立图片创作不触发。
 ---
 
-# UI Frontend Workflow
+# UI 前端工作流
 
-## Overview
+## 概述（Overview）
 
-Use this skill for UI and frontend tasks that need more than a single code edit. It combines product-aware UX planning, distinctive frontend implementation, and post-build interface review into one self-contained workflow.
+根据产品内容规划 UI/UX，按项目技术栈实现可用界面，并审查视觉、交互与工程质量。新建页面使用完整流程，已有界面的局部修复使用简化流程。
 
-This skill learned from:
-- `frontend-design`
-- `ui-ux-pro-max`
-- `web-design-guidelines`
+本 skill 整合了 `frontend-design`、`ui-ux-pro-max` 和 `web-design-guidelines` 的经验，可以独立复制使用。具体规则保存在 [UI 前端手册](references/ui-frontend-playbook.md)，运行时无需安装来源 skill 或联网获取规范。
 
-It does not require those skills to be installed. Use the bundled reference in `references/ui-frontend-playbook.md` when you need detailed rules.
+## 适用场景（When to Use）
 
-## Core Workflow
+- 新建或重设计 Web 页面、组件、应用、工具、仪表盘或落地页。
+- 提供界面设计建议、视觉优化、响应式或可访问性改进。
+- 审查已有 UI，或修复布局、交互和界面状态问题。
 
-### 1. Design
+## 不适用场景（When NOT to Use）
 
-Before implementation, identify:
-- product type and target users
-- primary workflow and first-screen goal
-- information hierarchy
-- visual direction
-- design-system constraints
-- accessibility and responsive requirements
+- 纯后端、数据库、命令行或构建任务，没有界面影响。
+- 独立图片、海报或插画创作，没有 Web 界面设计与实现需求。
+- 只调整普通文档文字，不涉及产品界面文案或交互。
 
-Choose a deliberate visual direction that fits the domain. Operational tools should feel dense, clear, and efficient. Editorial, brand, game, or creative experiences may be more expressive.
+## 任务分流
 
-### 2. Implement
+| 请求 | 执行范围 |
+| --- | --- |
+| 新建、重设计页面或应用 | 设计计划 → 计划自审 → 实现 → 界面审查 |
+| 局部组件或视觉优化 | 简述内容、项目约束与改动意图，再实现和定向审查 |
+| 小型 UI 缺陷修复 | 定位受损状态，复用现有风格，修复后检查相关状态 |
+| 仅设计建议 | 输出设计方向、信息结构、交互与实现交接说明 |
+| 仅界面审查 | 先报告问题和依据，再提出修复建议 |
 
-Build the actual usable interface, not a marketing placeholder, unless the user explicitly asks for a landing page.
+完整流程读取手册的设计、实现和审查章节；局部任务只读取对应章节。小型修复无需完整视觉提案。
 
-Prefer the existing project stack, components, icons, design tokens, and patterns. Keep changes scoped. Add states that users naturally expect: loading, empty, error, disabled, hover/focus, mobile, and reduced-motion where relevant.
+## 核心流程
 
-For frontend applications, verify visually when possible with the available local browser or screenshot tools.
+### 1. 设计与计划自审
 
-### 3. Review
+先明确具体产品或题材、目标用户、主要任务和首屏目标，再从真实内容、行业特征与信息层级选定连贯的视觉方向。运营工具关注扫描效率和密度，品牌、编辑或创意体验可使用更鲜明的表达。
 
-After implementation or when reviewing existing UI, check:
-- accessibility
-- semantic HTML and ARIA
-- keyboard and focus behavior
-- color contrast
-- responsive layout
-- touch target sizing
-- form and feedback states
-- motion and reduced-motion
-- layout stability
-- performance-sensitive UI patterns
+用户的明确需求和已有设计系统优先于本 skill 的审美偏好。先检查项目的组件、图标、字体和设计 token；保留合理的既有选择。
 
-Findings should lead when the user asks for review. Fix issues when the request is implementation-oriented or when the fix is clearly within scope.
+新建或重设计时形成简短计划：颜色语义、字体角色、布局、主操作和辨识点。编码前检查这些选择是否来自当前内容与需求；没有依据的通用模板或装饰应调整。草图和替代方案只在有助于决策时使用，配色数量按项目需要确定。
 
-## When To Ask A Question
+### 2. 实现
 
-Ask only when a missing decision would materially change the product, brand, target platform, or implementation stack. Otherwise make a conservative, project-consistent choice and proceed.
+按用户要求实现实际可用的界面。应用和工具的首屏应支持核心任务；落地页按其传播目标组织。
 
-## Reference Loading
+复用项目技术栈、组件和资源，保持改动范围。按任务补齐加载、空、错误、禁用、悬停、键盘焦点、移动端和减少动效等状态。界面文案使用用户理解的词语，动作名称保持一致，错误和空状态给出下一步。
 
-Read `references/ui-frontend-playbook.md` when:
-- creating a new page, component, app, or design system
-- polishing a UI
-- auditing UI quality
-- deciding between visual directions
-- checking accessibility or responsive behavior
+有条件时用本地浏览器或截图检查实际界面，再调整布局、文案和视觉细节。
 
-## License And Attribution
+### 3. 审查与验证
 
-This skill includes attribution and license preservation notes in `THIRD_PARTY_NOTICES.md`.
+按手册审查语义与 ARIA、键盘和焦点、对比度、响应式、触控尺寸、表单反馈、动效、布局稳定性和性能，同时检查视觉是否贴合内容、装饰是否必要、文案是否可操作。
 
-Bundled license copies:
-- `licenses/frontend-design-LICENSE.txt`
-- `licenses/ui-ux-pro-max-LICENSE.txt`
+审查请求先报告问题；实现请求修复范围内的问题。运行项目已有的相关检查，并说明实际验证结果和缺口。缺少截图或行为验证时，不宣称已经完成视觉或完整规范验证。
 
-The `web-design-guidelines` source directory in this workspace did not include a separate license file; source attribution is preserved in the notices file.
+## 何时询问
 
-## Common Mistakes
+只有缺失信息会实质改变产品、品牌、目标平台、核心流程或技术栈时才询问。其余情况结合项目上下文作出合理假设并简述；不为常规样式选择增加确认环节。
 
-- Treating UI work as only CSS styling while ignoring workflow, hierarchy, and states.
-- Building a landing page when the user asked for an app, tool, or usable interface.
-- Making bold visuals that conflict with the product's actual workflow.
-- Calling something reviewed without checking accessibility, responsive behavior, and interaction states.
-- Depending on external skills or remote guideline fetches for this skill to work.
+## 来源与许可
+
+本仓库已改写和整合来源规则，并于 2026-10-14 定向吸收 `frontend-design` 提交 `41bbe19` 的设计计划自审、克制表达和界面文案建议。版本依据与改写说明见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+
+保留的许可证副本为 [frontend-design](licenses/frontend-design-LICENSE.txt) 和 [ui-ux-pro-max](licenses/ui-ux-pro-max-LICENSE.txt)。`web-design-guidelines` 的本地来源未附独立许可证，声明中保留其来源信息。
+
+## 常见错误（Common Mistakes）
+
+- 只改 CSS，忽略用户任务、信息层级和交互状态。
+- 让应用或工具的首屏变成通用营销展示。
+- 将反模板示例视为风格禁令，覆盖用户需求或已有设计系统。
+- 对小型修复强制完整设计提案，扩大改动范围。
+- 用装饰标签、编号、动画或文案填充页面，没有实际信息用途。
+- 未检查可访问性、响应式和相关状态，就宣称审查完成。
+- 依赖远程规范或来源 skill 才能运行。
